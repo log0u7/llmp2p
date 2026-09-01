@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  llmp2pd LaunchAgent (macOS).
+
+  Install:
+    # put the binary somewhere stable and adjust the path below
+    cp llmp2pd-darwin-arm64 ~/bin/llmp2pd
+    sed "s|/Users/YOU/llmp2pd|$HOME/bin/llmp2pd|" \
+      deploy/macos/llmp2pd.plist > ~/Library/LaunchAgents/dev.log0u7.llmp2pd.plist
+    launchctl load ~/Library/LaunchAgents/dev.log0u7.llmp2pd.plist
+    tail -f /tmp/llmp2pd.log
+
+  Stop / remove:
+    launchctl unload ~/Library/LaunchAgents/dev.log0u7.llmp2pd.plist
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>dev.log0u7.llmp2pd</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/YOU/llmp2pd</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/llmp2pd.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/llmp2pd.log</string>
+</dict>
+</plist>

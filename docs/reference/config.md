@@ -12,17 +12,24 @@ llmp2p is flag-and-environment driven in v0; there is no config file yet.
 
 ## Store layout
 
-```
-$XDG_DATA_HOME/llmp2p/
-  store/<owner>/<repo>/           model files, as laid out in the repo
-    .llmp2p-manifest.json         manifest pointer pinning the local revision
-  manifests/<sha256>.json         content-addressed manifests
-  torrents/<infohash>.torrent     generated torrents
-  index.json                      local index (auto-published entries)
-  llmp2p.lock                     exclusive engine lock (flock)
-```
+Default root per OS:
 
-Override the root with `--dir` (CLI) or `--dir` (daemon).
+| OS | Path |
+|---|---|
+| Linux | `$XDG_DATA_HOME/llmp2p` (`~/.local/share/llmp2p`) |
+| macOS | `~/Library/Application Support/llmp2p` |
+| Windows | `%LOCALAPPDATA%\llmp2p` |
+
+Override with `--dir` (CLI) or `--dir` (daemon). Inside the root:
+
+```
+store/<owner>/<repo>/           model files, as laid out in the repo
+  .llmp2p-manifest.json         manifest pointer pinning the local revision
+manifests/<sha256>.json         content-addressed manifests
+torrents/<infohash>.torrent     generated torrents
+index.json                      local index (auto-published entries)
+llmp2p.lock                     exclusive engine lock (flock)
+```
 
 ## Locking
 

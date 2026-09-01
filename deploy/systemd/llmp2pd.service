@@ -1,0 +1,25 @@
+# llmp2pd user service (systemd).
+#
+# Install:
+#   cp deploy/systemd/llmp2pd.service ~/.config/systemd/user/
+#   # adjust ExecStart if the binary is not in ~/bin (make install puts it in
+#   # ~/go/bin, the release tarball wherever you unpacked it)
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now llmp2pd
+#   journalctl --user -u llmp2pd -f
+#
+# Enable lingering so the daemon runs without an active login session:
+#   loginctl enable-linger $USER
+
+[Unit]
+Description=llmp2p model swarm seeder
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=%h/bin/llmp2pd
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
