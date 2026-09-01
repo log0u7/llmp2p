@@ -21,6 +21,7 @@ Reference grammar: `hf:owner/repo[@revision][#/path/to/file]`.
 | `--http-only` | off | skip the index and swarm entirely |
 | `--bootstrap <url>` | project index | bootstrap origin(s), repeatable, tried in order |
 | `--grace <duration>` | `90s` | wait for swarm data before HTTP fallback |
+| `--allowed-signers <keys>` | empty | hex ed25519 keys trusted for manifest signatures (comma-separated; set = unsigned manifests rejected) |
 | `--listen-port <port>` | random | BitTorrent TCP/UDP listen port |
 | `--token <token>` | `$HF_TOKEN` | Hub access token (gated repos, rate limits) |
 | `--daemon <url>` | `http://127.0.0.1:8347` | delegate to a running daemon |
@@ -86,6 +87,13 @@ aware confirmation prompt guards the operation.
 | `--json` | off | `{model, files, size, dirRemoved, torrentRemoved, manifestRemoved, indexEntryRemoved}` |
 
 The store lock applies: a running daemon must be stopped (or finished) first.
+
+## `llmp2p keygen`
+
+Generate (or load) the publisher key at `<store>/publisher.key` and print its
+hex public key. When the key exists, published manifests get an ed25519
+signature sidecar (`manifests/<sha256>.sig`). The public key is what peers
+allowlist with `pull --allowed-signers`.
 
 ## `llmp2p --version`, `--help`
 

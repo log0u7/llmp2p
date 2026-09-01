@@ -5,12 +5,14 @@ package pull
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/log0u7/llmp2p/internal/engine"
@@ -18,6 +20,7 @@ import (
 	"github.com/log0u7/llmp2p/internal/index"
 	"github.com/log0u7/llmp2p/internal/manifest"
 	"github.com/log0u7/llmp2p/internal/ref"
+	"github.com/log0u7/llmp2p/internal/signing"
 	"github.com/log0u7/llmp2p/internal/store"
 )
 
@@ -55,6 +58,10 @@ type Options struct {
 	NoLock bool
 	// OnProgress receives periodic download progress.
 	OnProgress func(mode string, p engine.Progress)
+	// AllowedSigners are hex ed25519 public keys trusted for manifest
+	// signatures. Empty: signatures are verified but unknown signers only
+	// warn.
+	AllowedSigners []string
 	// Log receives structured progress lines; nil disables logging.
 	Log *slog.Logger
 }
@@ -191,6 +198,9 @@ func pullP2P(ctx context.Context, r *ref.Ref, opts Options, revision string, fil
 
 	m, err := fetchManifest(opts.HTTPClient, opts.BootstrapURLs, entry, revision)
 	if err != nil {
+		return Result{}, err
+	}
+	if err := verifyManifestSignature(opts, m, opts.BootstrapURLs); err != nil {
 		return Result{}, err
 	}
 
@@ -362,6 +372,10 @@ func publish(opts Options, r *ref.Ref, revision string, files []hf.FileInfo, mod
 	if err := m.Save(mfile); err != nil {
 		return Result{}, err
 	}
+	// Signature sidecar when a publisher key exists.
+	if err := signManifest(opts, m); err != nil {
+		logf(opts.Log, "manifest signing failed", "err", err)
+	}
 	// Torrent for seeders.
 	torrentBytes, err := m.MetaInfoBytes(modelDir)
 	if err != nil {
@@ -430,4 +444,107 @@ func logf(l *slog.Logger, msg string, args ...any) {
 	if l != nil {
 		l.Info(msg, args...)
 	}
+}
+
+// Signature sidecar written next to the manifest when a publisher key is
+// configured.
+type manifestSignature struct {
+	ManifestSHA256 string `json:"manifestSha256"`
+	Signature      string `json:"signature"`
+	PublicKey      string `json:"publicKey"`
+}
+
+// signManifest writes manifests/<sha256>.sig when the store holds a
+// publisher key. No key is not an error: signing is opt-in via keygen.
+func signManifest(opts Options, m *manifest.Manifest) error {
+	keyPath := filepath.Join(opts.Store.Root(), signing.DefaultKeyFile)
+	if _, err := os.Stat(keyPath); os.IsNotExist(err) {
+		return nil
+	}
+	priv, _, err := signing.LoadOrCreate(keyPath)
+	if err != nil {
+		return err
+	}
+	msha, err := m.SHA256()
+	if err != nil {
+		return err
+	}
+	canonical, err := m.Bytes()
+	if err != nil {
+		return err
+	}
+	sig := manifestSignature{
+		ManifestSHA256: msha,
+		Signature:      signing.Sign(priv, canonical),
+		PublicKey:      signing.PublicKeyHex(priv),
+	}
+	sigPath, err := opts.Store.SignaturePath(msha)
+	if err != nil {
+		return err
+	}
+	b, err := json.MarshalIndent(sig, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(sigPath, append(b, '\n'), 0o644)
+}
+
+// fetchManifestSignature retrieves the signature sidecar from bootstrap
+// origins; ok is false when no origin serves one.
+func fetchManifestSignature(client *http.Client, bases []string, manifestSHA string) (manifestSignature, bool, error) {
+	if client == nil {
+		client = http.DefaultClient
+	}
+	for _, base := range bases {
+		url := index.ManifestURL(base, manifestSHA) + ".sig"
+		resp, err := client.Get(url)
+		if err != nil {
+			continue
+		}
+		body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+		resp.Body.Close()
+		if err != nil || resp.StatusCode != http.StatusOK {
+			continue
+		}
+		var sig manifestSignature
+		if err := json.Unmarshal(body, &sig); err != nil {
+			return manifestSignature{}, false, fmt.Errorf("pull: bad signature sidecar: %w", err)
+		}
+		return sig, true, nil
+	}
+	return manifestSignature{}, false, nil
+}
+
+// verifyManifestSignature enforces the signer allowlist: an empty list
+// accepts any valid signature with a warning; a non-empty list rejects
+// unknown or missing signers when a sidecar exists.
+func verifyManifestSignature(opts Options, m *manifest.Manifest, bases []string) error {
+	msha, err := m.SHA256()
+	if err != nil {
+		return err
+	}
+	sig, found, err := fetchManifestSignature(opts.HTTPClient, bases, msha)
+	if err != nil {
+		return err
+	}
+	if !found {
+		if len(opts.AllowedSigners) > 0 {
+			return fmt.Errorf("pull: manifest is not signed and signer allowlist is set")
+		}
+		return nil
+	}
+	canonical, err := m.Bytes()
+	if err != nil {
+		return err
+	}
+	if err := signing.Verify(sig.PublicKey, sig.Signature, canonical); err != nil {
+		return fmt.Errorf("pull: manifest signature invalid: %w", err)
+	}
+	if len(opts.AllowedSigners) > 0 && !slices.Contains(opts.AllowedSigners, sig.PublicKey) {
+		return fmt.Errorf("pull: signer %s is not in the allowlist", sig.PublicKey)
+	}
+	if len(opts.AllowedSigners) == 0 {
+		logf(opts.Log, "manifest signed by unknown signer (allowlist empty)", "signer", sig.PublicKey)
+	}
+	return nil
 }

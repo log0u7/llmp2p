@@ -39,6 +39,7 @@ Use llmp2pd to keep your models seeding in the background.`,
 		newImportCmd(),
 		newRemoveCmd(),
 		newVerifyCmd(),
+		newKeygenCmd(),
 	)
 	return root
 }

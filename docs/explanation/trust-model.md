@@ -36,6 +36,16 @@ flowchart LR
 - path traversal -> reference and index validation reject `..`, absolute paths,
   and control characters; store paths are validated `owner/repo` pairs
 
+## Manifest signatures (v0.1)
+
+Publishers holding a key (`llmp2p keygen`) sign their manifests (ed25519
+sidecar `manifests/<sha256>.sig`). Fetching peers verify the signature and
+enforce an optional signer allowlist (`pull --allowed-signers k1,k2`):
+with an allowlist set, unsigned or unknown-signer manifests are rejected.
+Signatures bind the manifest bytes to a publisher identity; the identity is
+trusted because it was recorded in the index entry or configured by the
+operator.
+
 ## What v0 does NOT protect against
 
 - **A fully compromised bootstrap origin** that also serves consistent poisoned

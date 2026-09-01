@@ -144,6 +144,14 @@ func (s *Store) ManifestPath(sha256Hex string) (string, error) {
 	return filepath.Join(s.manifestsDir(), sha256Hex+".json"), nil
 }
 
+// SignaturePath maps a manifest sha256 (hex) to its signature sidecar.
+func (s *Store) SignaturePath(sha256Hex string) (string, error) {
+	if !isHex(sha256Hex, 64) {
+		return "", fmt.Errorf("store: invalid manifest hash %q", sha256Hex)
+	}
+	return filepath.Join(s.manifestsDir(), sha256Hex+".sig"), nil
+}
+
 // TorrentPath maps an infohash (hex) to its torrent file path.
 func (s *Store) TorrentPath(infoHashHex string) (string, error) {
 	if !isHex(infoHashHex, 40) {

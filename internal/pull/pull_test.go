@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -17,7 +18,9 @@ import (
 	"github.com/log0u7/llmp2p/internal/engine"
 	"github.com/log0u7/llmp2p/internal/hf"
 	"github.com/log0u7/llmp2p/internal/index"
+	"github.com/log0u7/llmp2p/internal/manifest"
 	"github.com/log0u7/llmp2p/internal/ref"
+	"github.com/log0u7/llmp2p/internal/signing"
 	"github.com/log0u7/llmp2p/internal/store"
 )
 
@@ -290,4 +293,76 @@ func freePort(t *testing.T) int {
 	}
 	defer func() { _ = l.Close() }()
 	return l.Addr().(*net.TCPAddr).Port
+}
+
+// TestManifestSignatureLifecycle pulls with a publisher key present: the
+// signature sidecar must be published next to the manifest and verify;
+// the allowlist then governs acceptance on the fetching side.
+func TestManifestSignatureLifecycle(t *testing.T) {
+	var hits atomic.Int64
+	hub := fakeHub(t, &hits)
+	st, err := store.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Publisher key pre-created: signing is opt-in via keygen.
+	priv, created, err := signing.LoadOrCreate(filepath.Join(st.Root(), signing.DefaultKeyFile))
+	if err != nil || !created {
+		t.Fatalf("keygen: created=%v err=%v", created, err)
+	}
+	pubHex := signing.PublicKeyHex(priv)
+
+	res, err := Run(context.Background(), pullRef(t), Options{
+		Store:         st,
+		HF:            hubAt(hub.URL),
+		BootstrapURLs: []string{emptyBootstrap(t)},
+		HTTPClient:    http.DefaultClient,
+		EngineCfg:     engine.Config{NoDHT: true},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sigPath, err := st.SignaturePath(res.ManifestSHA256)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(sigPath)
+	if err != nil {
+		t.Fatalf("signature sidecar missing: %v", err)
+	}
+	var sig struct {
+		Signature string `json:"signature"`
+		PublicKey string `json:"publicKey"`
+	}
+	if err := json.Unmarshal(b, &sig); err != nil {
+		t.Fatal(err)
+	}
+	if sig.PublicKey != pubHex {
+		t.Fatalf("sidecar signer = %s, want %s", sig.PublicKey, pubHex)
+	}
+	m, err := st.ManifestPath(res.ManifestSHA256)
+	if err != nil {
+		t.Fatal(err)
+	}
+	content, err := os.ReadFile(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := signing.Verify(sig.PublicKey, sig.Signature, content); err != nil {
+		t.Fatal(err)
+	}
+
+	// Allowlist verification on the fetching side.
+	opts := Options{AllowedSigners: []string{pubHex}, HTTPClient: http.DefaultClient}
+	mServed, err := manifest.Parse(content)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := verifyManifestSignature(opts, mServed, []string{emptyBootstrap(t)}); err == nil {
+		// emptyBootstrap serves no .sig: with a non-empty allowlist this
+		// must be rejected.
+		t.Fatal("unsigned manifest must be rejected when allowlist is set")
+	}
 }
