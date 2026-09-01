@@ -34,6 +34,8 @@ Use llmp2pd to keep your models seeding in the background.`,
 	root.PersistentFlags().StringVar(&flagStoreDir, "dir", store.DefaultDir(), "model store directory")
 	root.AddCommand(
 		newPullCmd(),
+		newSeedCmd(),
+		newListCmd(),
 	)
 	return root
 }
