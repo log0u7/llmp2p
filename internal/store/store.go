@@ -11,6 +11,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -19,6 +20,8 @@ import (
 
 	"github.com/gofrs/flock"
 
+	"github.com/log0u7/llmp2p/internal/index"
+	"github.com/log0u7/llmp2p/internal/manifest"
 	"github.com/log0u7/llmp2p/internal/ref"
 )
 
@@ -49,6 +52,83 @@ func Open(root string) (*Store, error) {
 		}
 	}
 	return s, nil
+}
+
+// ErrModelNotFound is returned by Remove when the store holds no model
+// for the given id.
+var ErrModelNotFound = errors.New("store: model not found")
+
+// RemoveSummary reports what Remove deleted.
+type RemoveSummary struct {
+	Model             string `json:"model"`
+	Files             int    `json:"files"`
+	Size              int64  `json:"size"`
+	DirRemoved        bool   `json:"dirRemoved"`
+	TorrentRemoved    bool   `json:"torrentRemoved"`
+	ManifestRemoved   bool   `json:"manifestRemoved"`
+	IndexEntryRemoved bool   `json:"indexEntryRemoved"`
+}
+
+// Remove deletes a model from the store: its file directory, the torrent,
+// the content-addressed manifest copy, and the local index entry. Missing
+// pieces are skipped without failing the removal.
+func (s *Store) Remove(modelID string) (RemoveSummary, error) {
+	sum := RemoveSummary{Model: modelID}
+	if !ref.ValidModelID(modelID) {
+		return sum, fmt.Errorf("store: invalid model id %q", modelID)
+	}
+	dir, err := s.ModelDir(modelID)
+	if err != nil {
+		return sum, err
+	}
+	if _, statErr := os.Stat(dir); os.IsNotExist(statErr) {
+		return sum, fmt.Errorf("%w: %s", ErrModelNotFound, modelID)
+	}
+
+	// Manifest-based cleanup: torrent + manifest copy keyed by hashes.
+	var m *manifest.Manifest
+	if mfile, err := s.ModelManifestFile(modelID); err == nil {
+		m, _ = manifest.Load(mfile)
+	}
+	if m != nil {
+		sum.Files = len(m.Files)
+		for _, f := range m.Files {
+			sum.Size += f.Size
+		}
+		if tpath, terr := s.TorrentPath(m.InfoHash); terr == nil {
+			if _, serr := os.Stat(tpath); serr == nil {
+				if os.Remove(tpath) == nil {
+					sum.TorrentRemoved = true
+				}
+			}
+		}
+		if msha, sherr := m.SHA256(); sherr == nil {
+			if mpath, merr := s.ManifestPath(msha); merr == nil {
+				if _, serr := os.Stat(mpath); serr == nil {
+					if os.Remove(mpath) == nil {
+						sum.ManifestRemoved = true
+					}
+				}
+			}
+		}
+	}
+
+	if err := os.RemoveAll(dir); err != nil {
+		return sum, fmt.Errorf("store: remove %s: %w", dir, err)
+	}
+	sum.DirRemoved = true
+
+	// Local index entry.
+	if ib, err := os.ReadFile(s.LocalIndexPath()); err == nil {
+		if ix, _, perr := index.Parse(ib); perr == nil {
+			if ix.Remove(modelID) {
+				if serr := ix.Save(s.LocalIndexPath()); serr == nil {
+					sum.IndexEntryRemoved = true
+				}
+			}
+		}
+	}
+	return sum, nil
 }
 
 func (s *Store) storeDir() string     { return filepath.Join(s.root, "store") }

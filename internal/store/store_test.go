@@ -1,10 +1,14 @@
 package store
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/log0u7/llmp2p/internal/index"
+	"github.com/log0u7/llmp2p/internal/manifest"
 )
 
 func TestDefaultDirXDG(t *testing.T) {
@@ -107,4 +111,106 @@ func TestLockExclusivity(t *testing.T) {
 		t.Fatalf("lock after release: %v", err)
 	}
 	release2()
+}
+
+// fakeStoredModel fabricates a fully stored model: file on disk, manifest
+// pointer, content-addressed manifest copy, torrent file, and index entry.
+func fakeStoredModel(t *testing.T, s *Store, modelID, infoHash string) {
+	t.Helper()
+	dir, err := s.ModelDir(modelID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "model.gguf"), []byte("model-bytes"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	m := &manifest.Manifest{
+		Schema: "llmp2p/v1", Model: modelID, Revision: "cafe123",
+		PieceLength: 4 << 20, InfoHash: infoHash,
+		Files: []manifest.File{{Path: "model.gguf", Size: 11,
+			SHA256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}},
+	}
+	mfile, err := s.ModelManifestFile(modelID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Save(mfile); err != nil {
+		t.Fatal(err)
+	}
+	msha, err := m.SHA256()
+	if err != nil {
+		t.Fatal(err)
+	}
+	mpath, err := s.ManifestPath(msha)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Save(mpath); err != nil {
+		t.Fatal(err)
+	}
+	tpath, err := s.TorrentPath(infoHash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(tpath, []byte("d8:announce0:e"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ix := &index.Index{Entries: map[string]index.Entry{}}
+	if err := ix.Add(index.Entry{Model: modelID, InfoHash: infoHash,
+		ManifestSHA256: msha, Revision: "cafe123", Size: 11}); err != nil {
+		t.Fatal(err)
+	}
+	if err := ix.Save(s.LocalIndexPath()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRemoveDeletesEverything(t *testing.T) {
+	s, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	const ih = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	fakeStoredModel(t, s, "org/model", ih)
+
+	dir, err := s.ModelDir("org/model")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tpath, _ := s.TorrentPath(ih)
+	msha := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	mpath, _ := s.ManifestPath(msha)
+
+	sum, err := s.Remove("org/model")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !sum.DirRemoved || !sum.TorrentRemoved || !sum.ManifestRemoved || !sum.IndexEntryRemoved {
+		t.Fatalf("summary = %+v", sum)
+	}
+	if sum.Files != 1 || sum.Size != 11 {
+		t.Fatalf("summary counts = %+v", sum)
+	}
+	for _, p := range []string{dir, tpath, mpath} {
+		if _, err := os.Stat(p); !os.IsNotExist(err) {
+			t.Errorf("%s still exists", p)
+		}
+	}
+	ib, err := os.ReadFile(s.LocalIndexPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	ix, _, err := index.Parse(ib)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := ix.Get("org/model"); ok {
+		t.Error("index entry still present")
+	}
+	if _, err := s.Remove("org/model"); !errors.Is(err, ErrModelNotFound) {
+		t.Fatalf("second remove err = %v, want ErrModelNotFound", err)
+	}
 }

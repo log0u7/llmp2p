@@ -74,6 +74,15 @@ func (ix *Index) Get(model string) (Entry, bool) {
 	return e, ok
 }
 
+// Remove deletes the entry for a model id and reports whether it existed.
+func (ix *Index) Remove(model string) bool {
+	if _, ok := ix.Entries[model]; !ok {
+		return false
+	}
+	delete(ix.Entries, model)
+	return true
+}
+
 // Add inserts an entry, returning an error if an incompatible entry
 // already exists (same model, different manifest).
 func (ix *Index) Add(e Entry) error {
