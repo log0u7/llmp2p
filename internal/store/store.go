@@ -6,7 +6,8 @@
 //	<root>/index.json              locally published index entries
 //	<root>/llmp2p.lock             exclusive engine lock
 //
-// The default root is $XDG_DATA_HOME/llmp2p (i.e. ~/.local/share/llmp2p).
+// The default root follows platform conventions (see the paths_*.go files
+// for this GOOS).
 package store
 
 import (
@@ -28,19 +29,6 @@ import (
 // Store is the on-disk model store.
 type Store struct {
 	root string
-}
-
-// DefaultDir returns the platform default store root, honoring
-// XDG_DATA_HOME.
-func DefaultDir() string {
-	if data := os.Getenv("XDG_DATA_HOME"); data != "" {
-		return filepath.Join(data, "llmp2p")
-	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return ".llmp2p"
-	}
-	return filepath.Join(home, ".local", "share", "llmp2p")
 }
 
 // Open prepares the directory layout and returns the store.
