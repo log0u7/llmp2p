@@ -127,7 +127,7 @@ func progressPrinter(w io.Writer, shown *bool) func(string, engine.Progress) {
 		default:
 			return
 		}
-		fmt.Fprintf(w, "\r\033[K%s", line)
+		_, _ = fmt.Fprintf(w, "\r\033[K%s", line)
 		*shown = true
 	}
 }
