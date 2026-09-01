@@ -1,8 +1,11 @@
 module github.com/log0u7/llmp2p
 
-go 1.24.0
+go 1.25.0
 
-require github.com/anacrolix/torrent v1.61.0
+require (
+	github.com/anacrolix/torrent v1.61.0
+	github.com/gofrs/flock v0.13.1
+)
 
 require (
 	github.com/anacrolix/generics v0.1.1-0.20251125230353-15d98d46693b // indirect
@@ -17,6 +20,6 @@ require (
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	golang.org/x/crypto v0.44.0 // indirect
 	golang.org/x/exp v0.0.0-20251113190631-e25ba8c21ef6 // indirect
-	golang.org/x/sys v0.38.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
 	lukechampine.com/blake3 v1.1.6 // indirect
 )

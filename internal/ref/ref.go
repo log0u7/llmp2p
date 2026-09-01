@@ -87,6 +87,17 @@ func (r *Ref) validate() error {
 	return nil
 }
 
+// ValidModelID reports whether id is a well-formed "owner/repo" pair as
+// produced by Ref.ID. Callers persisting model ids on disk (store paths)
+// must check this defensively.
+func ValidModelID(id string) bool {
+	owner, repo, ok := strings.Cut(id, "/")
+	if !ok || strings.Contains(repo, "/") {
+		return false
+	}
+	return ownerRe.MatchString(owner) && repoRe.MatchString(repo)
+}
+
 // ID returns the model identifier "owner/repo".
 func (r *Ref) ID() string {
 	return r.Owner + "/" + r.Repo
