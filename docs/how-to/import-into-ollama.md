@@ -7,16 +7,16 @@ You pulled a GGUF with llmp2p and want to chat with it in Ollama.
 1. Import (the store holds the file):
 
    ```sh
-   llmp2p import hf:HuggingFaceTB/SmolLM2-135M-Instruct-GGUF
+   llmp2p import hf:Qwen/Qwen2.5-0.5B-Instruct-GGUF
    ```
 
    Default Ollama name is the repo basename (here `smollm2-135m-instruct-gguf`).
-   Choose your own with `--name smollm2:135m`.
+   Choose your own with `--name qwen2.5-0.5b:135m`.
 
 2. Run it:
 
    ```sh
-   ollama run smollm2:135m
+   ollama run qwen2.5-0.5b
    ```
 
 ## Remote Ollama

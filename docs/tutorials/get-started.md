@@ -18,7 +18,7 @@ Check: `./bin/llmp2p --version` prints `llmp2p version 0.0.0`.
 ## 2. Pull a small model
 
 ```sh
-./bin/llmp2p pull hf:HuggingFaceTB/SmolLM2-135M-Instruct-GGUF
+./bin/llmp2p pull hf:Qwen/Qwen2.5-0.5B-Instruct-GGUF
 ```
 
 The first pull downloads over HTTPS from the Hub (there is no swarm yet),
@@ -33,7 +33,7 @@ Check: the output ends with `manifest <sha256>` and `infohash <40 hex>` lines.
 tree ~/.local/share/llmp2p
 ```
 
-Check: you see `store/HuggingFaceTB/SmolLM2-135M-Instruct-GGUF/` with the GGUF
+Check: you see `store/HuggingFaceTB/Qwen2.5-0.5B-Instruct-GGUF/` with the GGUF
 and its config, a `manifests/` directory with one content-addressed JSON, a
 `torrents/` directory with the `.torrent`, and a local `index.json` that now
 contains the model entry.
@@ -41,7 +41,7 @@ contains the model entry.
 ## 4. Import into Ollama
 
 ```sh
-./bin/llmp2p import hf:HuggingFaceTB/SmolLM2-135M-Instruct-GGUF --name smollm2
+./bin/llmp2p import hf:Qwen/Qwen2.5-0.5B-Instruct-GGUF --name qwen2.5-0.5b
 ```
 
 Check: `ollama run smollm2` answers.
@@ -71,7 +71,7 @@ seeds the first one:
 
 ```sh
 mkdir -p /tmp/llmp2p-second-store
-./bin/llmp2p pull hf:HuggingFaceTB/SmolLM2-135M-Instruct-GGUF \
+./bin/llmp2p pull hf:Qwen/Qwen2.5-0.5B-Instruct-GGUF \
   --dir /tmp/llmp2p-second-store \
   --bootstrap http://127.0.0.1:8347 # not yet: v0.1 serves the index over the daemon API
 ```

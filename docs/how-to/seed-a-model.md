@@ -6,7 +6,7 @@ back: upload bytes to peers.
 ## Seed a stored model
 
 ```sh
-llmp2p seed hf:HuggingFaceTB/SmolLM2-135M-Instruct-GGUF
+llmp2p seed hf:Qwen/Qwen2.5-0.5B-Instruct-GGUF
 ```
 
 The command resolves the model manifest in the store, loads the matching
@@ -14,7 +14,7 @@ The command resolves the model manifest in the store, loads the matching
 10 seconds:
 
 ```
-SmolLM2-135M-Instruct-Q8_0.gguf peers=3 up=524288000 down=0
+qwen2.5-0.5b-instruct-q4_0.gguf peers=3 up=524288000 down=0
 ```
 
 Stop with Ctrl-C.

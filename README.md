@@ -50,10 +50,10 @@ Requires Go 1.25+ (the go.mod pins the exact toolchain; `GOTOOLCHAIN=auto` handl
 
 ```sh
 # Pull a small model (P2P if a swarm exists, HTTPS otherwise)
-llmp2p pull hf:HuggingFaceTB/SmolLM2-135M-Instruct-GGUF
+llmp2p pull hf:Qwen/Qwen2.5-0.5B-Instruct-GGUF
 
 # Import it into Ollama
-llmp2p import hf:HuggingFaceTB/SmolLM2-135M-Instruct-GGUF --name smollm2-135m
+llmp2p import hf:Qwen/Qwen2.5-0.5B-Instruct-GGUF --name qwen2.5-0.5b
 
 # Keep sharing: background seeder + local status API
 llmp2pd
