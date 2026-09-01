@@ -54,6 +54,30 @@ Register a GGUF in Ollama via `ollama create` with a generated Modelfile.
 |---|---|---|
 | `--json` | off | array of `{model, revision, files, size}` |
 
+## `llmp2p verify <ref>`
+
+Re-hashes every file of a stored model against its manifest (streaming
+sha256, size checks). Whole models only (`#/path` rejected).
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `--json` | off | `{model, revision, files, size, ok, error}` |
+
+Exit code is non-zero on the first verification failure.
+
+## `llmp2p remove <ref>`
+
+Delete a model from the store: files, torrent, content-addressed manifest
+copy, and local index entry. Whole models only (`#/path` rejected). A size
+aware confirmation prompt guards the operation.
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `--yes` | off | skip the confirmation prompt |
+| `--json` | off | `{model, files, size, dirRemoved, torrentRemoved, manifestRemoved, indexEntryRemoved}` |
+
+The store lock applies: a running daemon must be stopped (or finished) first.
+
 ## `llmp2p --version`, `--help`
 
 Version is injected at build time (`make build`).

@@ -70,6 +70,8 @@ then against the manifest's per-file sha256 (Hub LFS oid).
 | `llmp2p seed <ref\|.torrent>` | seed until interrupted |
 | `llmp2p import <ref\|.gguf>` | register the GGUF in Ollama |
 | `llmp2p list` | show stored models |
+| `llmp2p verify <ref>` | re-verify a stored model's integrity |
+| `llmp2p remove <ref>` | remove a model from the store |
 | `llmp2pd` | background seeder + status API on `127.0.0.1:8347` |
 
 Full grammar and flags: [docs/reference/cli.md](docs/reference/cli.md) ·
