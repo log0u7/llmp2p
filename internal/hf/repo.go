@@ -79,7 +79,7 @@ func (c *Client) listTree(ctx context.Context, repoID, sha string) ([]FileInfo, 
 		var entries []treeEntry
 		err = decodeResponse(res, &entries)
 		nextRel := linkNext(res.Header.Get("Link"))
-		res.Body.Close()
+		_ = res.Body.Close()
 		if err != nil {
 			return nil, err
 		}

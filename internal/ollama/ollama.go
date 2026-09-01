@@ -86,9 +86,9 @@ func Create(ctx context.Context, ollamaBin, ggufPath, name, host string, w io.Wr
 		return err
 	}
 	modelfile := tmp.Name()
-	defer os.Remove(modelfile)
+	defer func() { _ = os.Remove(modelfile) }()
 	if _, err := fmt.Fprintf(tmp, "FROM %s\n", ggufPath); err != nil {
-		tmp.Close()
+		_ = tmp.Close()
 		return err
 	}
 	if err := tmp.Close(); err != nil {

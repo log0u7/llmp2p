@@ -153,14 +153,14 @@ func TestVerifyDir(t *testing.T) {
 	// Corrupt one byte.
 	p := filepath.Join(root, "config.json")
 	orig, _ := os.ReadFile(p)
-	os.WriteFile(p, append(orig, 'x'), 0o644)
+	_ = os.WriteFile(p, append(orig, 'x'), 0o644)
 	if err := m.VerifyDir(root); err == nil {
 		t.Fatal("VerifyDir must detect corruption")
 	}
-	os.WriteFile(p, orig, 0o644)
+	_ = os.WriteFile(p, orig, 0o644)
 
 	// Missing file.
-	os.Remove(filepath.Join(root, "sub", "dir", "tokeni.json"))
+	_ = os.Remove(filepath.Join(root, "sub", "dir", "tokeni.json"))
 	if err := m.VerifyDir(root); err == nil {
 		t.Fatal("VerifyDir must detect missing files")
 	}

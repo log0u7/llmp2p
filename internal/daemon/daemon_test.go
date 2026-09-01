@@ -55,7 +55,7 @@ func freePort(t *testing.T) int {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer l.Close()
+	defer func() { _ = l.Close() }()
 	return l.Addr().(*net.TCPAddr).Port
 }
 
@@ -92,7 +92,7 @@ func TestDaemonRunsAndServesStatus(t *testing.T) {
 			if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {
 				t.Fatal(err)
 			}
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			break
 		}
 		if time.Now().After(deadline) {
@@ -113,7 +113,7 @@ func TestDaemonRunsAndServesStatus(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&ids); err != nil {
 		t.Fatal(err)
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if len(ids) != 1 || ids[0] != "org/model" {
 		t.Fatalf("models = %v", ids)
 	}
@@ -127,7 +127,7 @@ func TestDaemonRunsAndServesStatus(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&torrents); err != nil {
 		t.Fatal(err)
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if len(torrents) != 0 {
 		t.Fatalf("torrents = %v", torrents)
 	}

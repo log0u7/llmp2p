@@ -38,10 +38,10 @@ func fakeHub(t *testing.T, hits *atomic.Int64) *httptest.Server {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/models/org/model/revision/main", func(w http.ResponseWriter, r *http.Request) {
 		hits.Add(1)
-		fmt.Fprint(w, `{"sha":"cafe123"}`)
+		_, _ = fmt.Fprint(w, `{"sha":"cafe123"}`)
 	})
 	mux.HandleFunc("/api/models/org/model/tree/cafe123", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, `[{"type":"file","path":"config.json","size":%d},
+		_, _ = fmt.Fprintf(w, `[{"type":"file","path":"config.json","size":%d},
 			{"type":"file","path":"model.gguf","size":%d,"lfs":{"oid":"%s"}}]`,
 			len(configData), len(ggufContent), ggufSHA)
 	})
@@ -49,9 +49,9 @@ func fakeHub(t *testing.T, hits *atomic.Int64) *httptest.Server {
 		hits.Add(1)
 		switch filepath.Base(r.URL.Path) {
 		case "config.json":
-			w.Write([]byte(configData))
+			_, _ = w.Write([]byte(configData))
 		case "model.gguf":
-			w.Write([]byte(ggufContent))
+			_, _ = w.Write([]byte(ggufContent))
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -64,7 +64,7 @@ func fakeHub(t *testing.T, hits *atomic.Int64) *httptest.Server {
 func emptyBootstrap(t *testing.T) string {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/index.json", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`{"entries":{}}`))
+		_, _ = w.Write([]byte(`{"entries":{}}`))
 	})
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
@@ -224,7 +224,7 @@ func TestPullP2P(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer seeder.Close()
+	defer func() { _ = seeder.Close() }()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	if err := seeder.SeedTorrentFile(ctx, tpath); err != nil {
@@ -242,10 +242,10 @@ func TestPullP2P(t *testing.T) {
 	boot := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/index.json":
-			fmt.Fprintf(w, `{"entries":{"org/model":{"model":"org/model","infoHash":"%s","manifestSha256":"%s","revision":"cafe123","size":%d}}}`,
+			_, _ = fmt.Fprintf(w, `{"entries":{"org/model":{"model":"org/model","infoHash":"%s","manifestSha256":"%s","revision":"cafe123","size":%d}}}`,
 				first.InfoHash, first.ManifestSHA256, first.Size)
 		case "/manifests/" + first.ManifestSHA256 + ".json":
-			w.Write(mBytes)
+			_, _ = w.Write(mBytes)
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -288,6 +288,6 @@ func freePort(t *testing.T) int {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer l.Close()
+	defer func() { _ = l.Close() }()
 	return l.Addr().(*net.TCPAddr).Port
 }

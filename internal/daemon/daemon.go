@@ -83,7 +83,7 @@ func Run(ctx context.Context, opts Options) error {
 	}
 	defer func() {
 		for _, e := range srv.engines {
-			e.Close()
+			_ = e.Close()
 		}
 	}()
 
@@ -114,7 +114,9 @@ func Run(ctx context.Context, opts Options) error {
 	case <-ctx.Done():
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		httpSrv.Shutdown(shutdownCtx)
+		if err := httpSrv.Shutdown(shutdownCtx); err != nil {
+			logf(opts.Log, "shutdown error", "err", err)
+		}
 		return nil
 	case err := <-errCh:
 		if errors.Is(err, http.ErrServerClosed) {
@@ -238,7 +240,7 @@ func (s *Server) countModels() int {
 
 func writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(v)
+	_ = json.NewEncoder(w).Encode(v)
 }
 
 func logf(l *slog.Logger, msg string, args ...any) {

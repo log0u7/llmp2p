@@ -28,7 +28,7 @@ func TestFindGGUF(t *testing.T) {
 		t.Fatal("empty dir must fail")
 	}
 	single := filepath.Join(dir, "model.gguf")
-	os.WriteFile(single, []byte("gguf"), 0o644)
+	_ = os.WriteFile(single, []byte("gguf"), 0o644)
 	got, err := FindGGUF(dir)
 	if err != nil || got != single {
 		t.Fatalf("FindGGUF = %q, err = %v", got, err)
@@ -37,8 +37,8 @@ func TestFindGGUF(t *testing.T) {
 
 func TestFindGGUFRejectsShards(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "model-00001-of-00002.gguf"), []byte("a"), 0o644)
-	os.WriteFile(filepath.Join(dir, "model-00002-of-00002.gguf"), []byte("b"), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "model-00001-of-00002.gguf"), []byte("a"), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "model-00002-of-00002.gguf"), []byte("b"), 0o644)
 	if _, err := FindGGUF(dir); err == nil || !strings.Contains(err.Error(), "split GGUF") {
 		t.Fatalf("err = %v, want split GGUF rejection", err)
 	}
@@ -46,8 +46,8 @@ func TestFindGGUFRejectsShards(t *testing.T) {
 
 func TestFindGGUFRejectsMultiple(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "a.gguf"), []byte("a"), 0o644)
-	os.WriteFile(filepath.Join(dir, "b.gguf"), []byte("b"), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "a.gguf"), []byte("a"), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "b.gguf"), []byte("b"), 0o644)
 	if _, err := FindGGUF(dir); err == nil {
 		t.Fatal("multiple GGUFs must be rejected")
 	}
@@ -72,7 +72,7 @@ func TestCreateInvokesCLI(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("RECORD", root)
 	gguf := filepath.Join(root, "model.gguf")
-	os.WriteFile(gguf, []byte("gguf-data"), 0o644)
+	_ = os.WriteFile(gguf, []byte("gguf-data"), 0o644)
 
 	bin := fakeOllama(t, root)
 	var out bytes.Buffer
@@ -106,7 +106,7 @@ func TestCreateInvokesCLI(t *testing.T) {
 func TestCreateMissingBinary(t *testing.T) {
 	root := t.TempDir()
 	gguf := filepath.Join(root, "model.gguf")
-	os.WriteFile(gguf, []byte("d"), 0o644)
+	_ = os.WriteFile(gguf, []byte("d"), 0o644)
 	if err := Create(context.Background(), "/nonexistent/ollama", gguf, "m", "", &bytes.Buffer{}); err == nil {
 		t.Fatal("expected error for missing binary")
 	}

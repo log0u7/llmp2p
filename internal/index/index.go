@@ -158,7 +158,7 @@ func Fetch(client *http.Client, base_urls []string) (*FetchResult, error) {
 			continue
 		}
 		body, err := io.ReadAll(io.LimitReader(resp.Body, 16<<20))
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if err != nil {
 			res.Errors = append(res.Errors, fmt.Errorf("index: read %s: %w", url, err))
 			continue

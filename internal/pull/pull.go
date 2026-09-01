@@ -193,7 +193,7 @@ func pullP2P(ctx context.Context, r *ref.Ref, opts Options, revision string, fil
 	if err != nil {
 		return Result{}, err
 	}
-	defer eng.Close()
+	defer func() { _ = eng.Close() }()
 
 	if err := eng.PrepareMagnet(entry.InfoHash); err != nil {
 		return Result{}, err
@@ -267,7 +267,7 @@ func fetchManifest(client *http.Client, bases []string, entry index.Entry, revis
 			continue
 		}
 		body, err := io.ReadAll(io.LimitReader(resp.Body, 64<<20))
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if err != nil || resp.StatusCode != http.StatusOK {
 			continue
 		}

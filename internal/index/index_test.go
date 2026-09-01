@@ -85,12 +85,12 @@ func TestFetchMergesOriginsFirstWins(t *testing.T) {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
-		w.Write([]byte(`{"entries":{"org/a":{"model":"org/a","infoHash":"` + ih40 + `","manifestSha256":"` + sha64 + `","revision":"rA","size":1}}}`))
+		_, _ = w.Write([]byte(`{"entries":{"org/a":{"model":"org/a","infoHash":"` + ih40 + `","manifestSha256":"` + sha64 + `","revision":"rA","size":1}}}`))
 	}))
 	defer originA.Close()
 	originB := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		shaC := "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-		w.Write([]byte(`{"entries":{
+		_, _ = w.Write([]byte(`{"entries":{
 			"org/a":{"model":"org/a","infoHash":"` + ih40 + `","manifestSha256":"` + shaC + `","revision":"rB","size":1},
 			"org/b":{"model":"org/b","infoHash":"` + ih40 + `","manifestSha256":"` + shaC + `","revision":"rB","size":2}
 		}}`))

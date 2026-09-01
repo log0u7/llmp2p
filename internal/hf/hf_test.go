@@ -46,11 +46,11 @@ func TestResolve(t *testing.T) {
 		if got := r.Header.Get("Authorization"); got != "Bearer tok" {
 			t.Errorf("missing token header, got %q", got)
 		}
-		fmt.Fprint(w, `{"sha":"commitsha"}`)
+		_, _ = fmt.Fprint(w, `{"sha":"commitsha"}`)
 	})
 	mux.HandleFunc("/api/models/org/model/tree/commitsha", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Query().Get("page") == "2" {
-			fmt.Fprint(w, `[{"type":"file","path":"model.gguf","size":4,"lfs":{"oid":"lfs256"}}]`)
+			_, _ = fmt.Fprint(w, `[{"type":"file","path":"model.gguf","size":4,"lfs":{"oid":"lfs256"}}]`)
 			return
 		}
 		if r.URL.Query().Get("recursive") != "true" {
@@ -58,7 +58,7 @@ func TestResolve(t *testing.T) {
 			return
 		}
 		w.Header().Set("Link", `</api/models/org/model/tree/commitsha?page=2>; rel="next"`)
-		fmt.Fprint(w, `[{"type":"file","path":"config.json","size":10},
+		_, _ = fmt.Fprint(w, `[{"type":"file","path":"config.json","size":10},
 			{"type":"directory","path":"sub"},
 			{"type":"file","path":"weights.bin","size":4,"lfs":{"oid":"other256"}}]`)
 	})
@@ -105,7 +105,7 @@ func TestDownload(t *testing.T) {
 		if r.URL.Path != "/org/model/resolve/main/dir/file.gguf" {
 			t.Errorf("unexpected path %q", r.URL.Path)
 		}
-		w.Write(body)
+		_, _ = w.Write(body)
 	})
 	c := newTestServer(t, mux)
 
@@ -138,11 +138,11 @@ func TestDownloadFile(t *testing.T) {
 			w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, len(body)-1, len(body)))
 			w.Header().Set("Content-Length", strconv.Itoa(len(body)-start))
 			w.WriteHeader(http.StatusPartialContent)
-			w.Write(body[start:])
+			_, _ = w.Write(body[start:])
 			return
 		}
 		w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-		w.Write(body)
+		_, _ = w.Write(body)
 	})
 	c := newTestServer(t, mux)
 
@@ -179,7 +179,7 @@ func TestDownloadFileChecksumMismatch(t *testing.T) {
 	body := testPayload(t, 128)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/org/model/resolve/main/file.gguf", func(w http.ResponseWriter, r *http.Request) {
-		w.Write(body)
+		_, _ = w.Write(body)
 	})
 	c := newTestServer(t, mux)
 

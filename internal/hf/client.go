@@ -76,7 +76,7 @@ func (c *Client) do(req *http.Request, out any) error {
 	if err != nil {
 		return err
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	return decodeResponse(res, out)
 }
 
@@ -88,7 +88,7 @@ func decodeResponse(res *http.Response, out any) error {
 		return &HTTPError{Status: res.StatusCode, URL: res.Request.URL.String()}
 	}
 	if out == nil {
-		io.Copy(io.Discard, res.Body)
+		_, _ = io.Copy(io.Discard, res.Body)
 		return nil
 	}
 	if err := json.NewDecoder(res.Body).Decode(out); err != nil {

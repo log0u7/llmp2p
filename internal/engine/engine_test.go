@@ -18,7 +18,7 @@ func freePort(t *testing.T) int {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer l.Close()
+	defer func() { _ = l.Close() }()
 	return l.Addr().(*net.TCPAddr).Port
 }
 
@@ -82,7 +82,7 @@ func TestLocalSwarm(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer srv.Close()
+	defer func() { _ = srv.Close() }()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
@@ -97,7 +97,7 @@ func TestLocalSwarm(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer cliA.Close()
+	defer func() { _ = cliA.Close() }()
 	errA := make(chan error, 1)
 	go func() {
 		errA <- cliA.PullTorrentFile(ctx, torrentPath, nil)
@@ -119,7 +119,7 @@ func TestLocalSwarm(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer cliB.Close()
+	defer func() { _ = cliB.Close() }()
 	var lastProgress Progress
 	errB := make(chan error, 1)
 	go func() {

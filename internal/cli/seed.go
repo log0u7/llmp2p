@@ -39,7 +39,7 @@ func newSeedCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			defer eng.Close()
+			defer func() { _ = eng.Close() }()
 
 			seedCtx, cancel := contextWithSignal(cmd.Context())
 			defer cancel()

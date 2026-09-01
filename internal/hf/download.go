@@ -57,7 +57,7 @@ func (c *Client) Download(ctx context.Context, repoID, revision, path string, w 
 	if err != nil {
 		return "", 0, err
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	if res.StatusCode == http.StatusNotFound {
 		return "", 0, ErrNotFound
 	}
@@ -87,7 +87,7 @@ func (c *Client) DownloadFile(ctx context.Context, repoID, revision, path, dst, 
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.artifactURL(repoID, revision, path), nil)
 	if err != nil {
-		f.Close()
+		_ = f.Close()
 		return 0, err
 	}
 	if c.Token != "" {
@@ -99,15 +99,15 @@ func (c *Client) DownloadFile(ctx context.Context, repoID, revision, path, dst, 
 
 	res, err := c.downloadClient().Do(req)
 	if err != nil {
-		f.Close()
+		_ = f.Close()
 		return 0, err
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 
 	switch {
 	case res.StatusCode == http.StatusRequestedRangeNotSatisfiable:
 		// The server cannot satisfy the range: restart from scratch.
-		f.Close()
+		_ = f.Close()
 		if err := os.Remove(tmp); err != nil && !os.IsNotExist(err) {
 			return 0, err
 		}
@@ -115,30 +115,30 @@ func (c *Client) DownloadFile(ctx context.Context, repoID, revision, path, dst, 
 	case res.StatusCode == http.StatusPartialContent:
 		// Resuming from offset.
 	case res.StatusCode == http.StatusNotFound:
-		f.Close()
+		_ = f.Close()
 		return 0, ErrNotFound
 	case res.StatusCode >= 200 && res.StatusCode < 300:
 		// Server ignored the Range header (or none was sent): rewrite
 		// from the beginning and rehash the full body.
 		if offset > 0 {
 			if _, err := f.Seek(0, io.SeekStart); err != nil {
-				f.Close()
+				_ = f.Close()
 				return 0, err
 			}
 			hasher.Reset()
 		}
 	default:
-		f.Close()
+		_ = f.Close()
 		return 0, &HTTPError{Status: res.StatusCode, URL: req.URL.String()}
 	}
 
 	n, err := io.Copy(io.MultiWriter(f, hasher), res.Body)
 	if err != nil {
-		f.Close()
+		_ = f.Close()
 		return 0, fmt.Errorf("hf: download %s: %w", path, err)
 	}
 	if err := f.Sync(); err != nil {
-		f.Close()
+		_ = f.Close()
 		return 0, err
 	}
 	if err := f.Close(); err != nil {
@@ -147,7 +147,7 @@ func (c *Client) DownloadFile(ctx context.Context, repoID, revision, path, dst, 
 
 	got := hex.EncodeToString(hasher.Sum(nil))
 	if wantSHA256 != "" && got != wantSHA256 {
-		os.Remove(tmp)
+		_ = os.Remove(tmp)
 		return 0, fmt.Errorf("%w: got %s want %s", ErrChecksum, got, wantSHA256)
 	}
 	if err := os.Rename(tmp, dst); err != nil {
@@ -168,11 +168,11 @@ func resumeState(tmp string) (int64, hash.Hash, *os.File, error) {
 		}
 		hasher := newDigest()
 		if _, err := io.Copy(hasher, io.LimitReader(f, info.Size())); err != nil {
-			f.Close()
+			_ = f.Close()
 			return 0, nil, nil, err
 		}
 		if _, err := f.Seek(0, io.SeekEnd); err != nil {
-			f.Close()
+			_ = f.Close()
 			return 0, nil, nil, err
 		}
 		return info.Size(), hasher, f, nil

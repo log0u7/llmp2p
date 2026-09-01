@@ -142,7 +142,9 @@ func isHex(s string, n int) bool {
 		return false
 	}
 	for _, c := range s {
-		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f') {
+		digit := c >= '0' && c <= '9'
+		lower := c >= 'a' && c <= 'f'
+		if !digit && !lower {
 			return false
 		}
 	}
@@ -162,6 +164,6 @@ func (s *Store) Lock(timeout time.Duration) (func(), error) {
 	if !locked {
 		return nil, fmt.Errorf("store: lock %s: timed out", s.root)
 	}
-	release := func() { fl.Unlock() }
+	release := func() { _ = fl.Unlock() }
 	return release, nil
 }
