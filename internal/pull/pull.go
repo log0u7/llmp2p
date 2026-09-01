@@ -112,10 +112,12 @@ func Run(ctx context.Context, r *ref.Ref, opts Options) (Result, error) {
 		entries = append(entries, manifest.File{Path: f.Path, Size: f.Size})
 	}
 
-	// Cache: local files already match the pinned revision.
-	if cached, ok, cerr := checkCache(opts.Store, r.ID(), res.Revision, modelDir); cerr != nil {
-		return Result{}, cerr
-	} else if ok {
+	// Cache: local files already match the pinned revision. Corrupted
+	// files are logged and re-pulled, never hard-failed.
+	cached, cachedOK, cerr := checkCache(opts.Store, r.ID(), res.Revision, modelDir)
+	if cerr != nil {
+		logf(opts.Log, "cached files corrupt, re-pulling", "err", cerr)
+	} else if cachedOK {
 		return Result{Model: r.ID(), Revision: res.Revision, Mode: ModeCache,
 			Files: len(cached.Files), Size: total, InfoHash: cached.InfoHash,
 			ManifestSHA256: mustSHA(cached)}, nil
