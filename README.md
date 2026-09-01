@@ -12,13 +12,12 @@ when they do not, and keep your models seeding for everyone else.
 ## Why
 
 GGUF models are 1-100+ GB files served over plain HTTP: every download hits the
-Hub again. llmp2p treats models as what they are, large immutable
-content-addressed blobs that a swarm serves better than a single origin. The
-more popular a model, the faster it distributes.
+Hub again. llmp2p treats models as what they are, large immutable blobs that a
+swarm serves better than a single origin. The more popular a model, the faster
+it distributes.
 
 **Good fit**: sharing GGUF repos, homelabs with several machines, sparing the
-Hub. **Bad fit**: first pull of a model nobody seeds (the Hub fallback exists
-for exactly that, but it is not magic).
+Hub. **Bad fit**: first pull of a model nobody seeds.
 
 ## Quickstart
 
@@ -36,8 +35,8 @@ llmp2p pull hf:Qwen/Qwen2.5-0.5B-Instruct-GGUF
 llmp2p import hf:Qwen/Qwen2.5-0.5B-Instruct-GGUF --name qwen2.5-0.5b
 ollama run qwen2.5-0.5b
 
-llmp2pd                                   # background seeder + status API
-curl -s localhost:8347/api/v1/status | jq # verify it is seeding
+llmp2pd
+curl -s localhost:8347/api/v1/status | jq
 ```
 
 Expected result after `pull`: a `manifest <sha256>` / `infohash <40hex>` line
@@ -60,10 +59,8 @@ flowchart TD
     H --> I["llmp2pd keeps it seeding"]
 ```
 
-Every byte is verified twice: against torrent piece hashes during transfer, and
-against sha256 (Hub LFS oid) at the end. The HTTPS path generates and publishes
-the manifest; the swarm path fetches it from the bootstrap origin and checks it
-against the index entry.
+Every byte is verified twice: against torrent piece hashes during transfer,
+then against the manifest's per-file sha256 (Hub LFS oid).
 
 ## Commands
 
