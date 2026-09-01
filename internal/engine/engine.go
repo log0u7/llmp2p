@@ -185,6 +185,16 @@ func (e *Engine) PullTorrentFile(ctx context.Context, torrentPath string, onProg
 	return e.pull(ctx, t, onProgress)
 }
 
+// PrepareMagnet registers a torrent by infohash without starting any
+// transfer, allowing peers to be injected before pulling.
+func (e *Engine) PrepareMagnet(infoHashHex string) error {
+	if len(infoHashHex) != 40 {
+		return fmt.Errorf("engine: bad infohash %q", infoHashHex)
+	}
+	_, err := e.cl.AddMagnet("magnet:?xt=urn:btih:" + strings.ToLower(infoHashHex))
+	return err
+}
+
 // PullMagnet downloads the torrent identified by a v1 infohash hex string,
 // discovering metadata (BEP 9) and data from peers.
 func (e *Engine) PullMagnet(ctx context.Context, infoHashHex string, onProgress func(Progress)) error {

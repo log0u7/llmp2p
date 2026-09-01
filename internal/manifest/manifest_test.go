@@ -64,18 +64,34 @@ func TestCreateDeterministic(t *testing.T) {
 	}
 }
 
-func TestCreateDifferentNamesDiffer(t *testing.T) {
+func TestCreateIdenticalContentSharesInfoHash(t *testing.T) {
 	root, entries := writeRepo(t)
 	m1, err := Create("org/model", "rev1", entries, root)
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Same content, same torrent root name: the infohash is identical,
+	// so independent pullers converge on one swarm.
 	m2, err := Create("other/model", "rev1", entries, root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if m1.InfoHash == m2.InfoHash {
-		t.Fatal("infohash must depend on torrent name")
+	if m1.InfoHash != m2.InfoHash {
+		t.Fatal("identical content under same torrent name must share infohash")
+	}
+
+	// Different content must differ.
+	if err := os.WriteFile(filepath.Join(root, "extra.bin"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	entries = append(entries, File{Path: "extra.bin", Size: 1})
+	sortFiles(entries)
+	m3, err := Create("org/model", "rev1", entries, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m1.InfoHash == m3.InfoHash {
+		t.Fatal("different content must produce a different infohash")
 	}
 }
 

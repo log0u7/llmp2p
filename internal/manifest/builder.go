@@ -97,10 +97,14 @@ func (m *Manifest) MetaInfoBytes(root string) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// torrentName maps a model id to the torrent root name: HF repo ids
-// contain "/", which is not a valid single path component.
+// torrentName maps a model id to the torrent root directory name: the
+// repo basename. With engine DataDir set to the owner directory,
+// downloaded files land in <owner>/<repo>/<relpath>, matching the store
+// layout. Two repos with byte-identical content share an infohash and
+// therefore a swarm, which is fine: content is verified per file.
 func torrentName(model string) string {
-	return strings.ReplaceAll(model, "/", "__")
+	_, repo, _ := strings.Cut(model, "/")
+	return repo
 }
 
 func slashSegments(p string) []string {

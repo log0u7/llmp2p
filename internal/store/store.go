@@ -87,6 +87,16 @@ func (s *Store) TorrentPath(infoHashHex string) (string, error) {
 // LocalIndexPath is the locally published index file.
 func (s *Store) LocalIndexPath() string { return filepath.Join(s.root, "index.json") }
 
+// ModelManifestFile is the manifest pointer inside a model directory,
+// pinning the revision the local files belong to.
+func (s *Store) ModelManifestFile(modelID string) (string, error) {
+	dir, err := s.ModelDir(modelID)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, ".llmp2p-manifest.json"), nil
+}
+
 // Manifests lists the sha256 of every stored manifest.
 func (s *Store) Manifests() ([]string, error) {
 	entries, err := os.ReadDir(s.manifestsDir())

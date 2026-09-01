@@ -27,7 +27,7 @@ func freePort(t *testing.T) int {
 func seedFixture(t *testing.T) (seedDataDir, torrentPath string, m *manifest.Manifest) {
 	t.Helper()
 	seedDataDir = t.TempDir()
-	modelDir := filepath.Join(seedDataDir, "org__model")
+	modelDir := filepath.Join(seedDataDir, "model")
 	files := map[string]string{
 		"config.json":        `{"model_type":"swarm-test"}`,
 		"model.gguf":         fmt.Sprintf("%s%s", string(make([]byte, 1024*1024)), "ggufpayload"),
@@ -58,7 +58,7 @@ func seedFixture(t *testing.T) (seedDataDir, torrentPath string, m *manifest.Man
 	if err != nil {
 		t.Fatal(err)
 	}
-	torrentPath = filepath.Join(seedDataDir, "org__model.torrent")
+	torrentPath = filepath.Join(seedDataDir, "model.torrent")
 	if err := os.WriteFile(torrentPath, torrentBytes, 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +110,7 @@ func TestLocalSwarm(t *testing.T) {
 	if err := <-errA; err != nil {
 		t.Fatalf("leecher A: %v", err)
 	}
-	if err := m.VerifyDir(filepath.Join(cliA.cfg.DataDir, "org__model")); err != nil {
+	if err := m.VerifyDir(filepath.Join(cliA.cfg.DataDir, "model")); err != nil {
 		t.Fatalf("leecher A data: %v", err)
 	}
 
@@ -135,7 +135,7 @@ func TestLocalSwarm(t *testing.T) {
 	if !lastProgress.Complete || lastProgress.Total == 0 {
 		t.Fatalf("final progress = %+v", lastProgress)
 	}
-	if err := m.VerifyDir(filepath.Join(cliB.cfg.DataDir, "org__model")); err != nil {
+	if err := m.VerifyDir(filepath.Join(cliB.cfg.DataDir, "model")); err != nil {
 		t.Fatalf("leecher B data: %v", err)
 	}
 }
