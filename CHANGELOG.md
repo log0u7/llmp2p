@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `llmp2p remove <ref>`: delete a model from the store (files, torrent,
+  manifest, local index entry) with a size-aware confirmation prompt.
+- `llmp2p verify <ref>`: re-hash a stored model against its manifest.
+- Pull progress: self-rewriting swarm line and a fetched-file counter for the
+  HTTP fallback.
+- Daemon pull delegation: `POST /api/v1/pulls` job queue; the CLI detects a
+  running daemon automatically and polls the job.
+- Prometheus metrics: `GET /metrics` on the daemon.
+- ed25519 signed manifests: `llmp2p keygen`, signature sidecars, and
+  `pull --allowed-signers`.
+- Prebuilt binaries attached to GitHub Releases (linux/macos/windows).
+- Service units: systemd, launchd, NSSM ([deploy/](deploy/)).
+- mise-based dev environment ([mise.toml](mise.toml)).
+- CI: govulncheck job, Dependabot, actions pinned to commit SHAs.
+
+### Fixed
+
+- Corrupted cached files now trigger a transparent re-pull instead of a hard
+  error.
+- Platform-appropriate default store dirs (XDG / Library / LOCALAPPDATA).
+- Go toolchain bumped to 1.25.14 and vulnerable modules updated:
+  govulncheck reports zero reachable vulnerabilities.
+
 ## [0.0.1] - 2026-09-01
 
 ### Added
