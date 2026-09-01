@@ -291,7 +291,7 @@ func pullHTTP(ctx context.Context, r *ref.Ref, opts Options, revision string, fi
 	if hfc == nil {
 		hfc = hf.New()
 	}
-	for _, f := range files {
+	for i, f := range files {
 		dst := filepath.Join(modelDir, filepath.FromSlash(f.Path))
 		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 			return Result{}, err
@@ -308,7 +308,10 @@ func pullHTTP(ctx context.Context, r *ref.Ref, opts Options, revision string, fi
 			return Result{}, fmt.Errorf("pull: download %s: %w", f.Path, err)
 		}
 		if opts.OnProgress != nil {
-			opts.OnProgress(ModeHTTP, engine.Progress{})
+			// HTTP mode reuses Completed/Total as a file counter.
+			opts.OnProgress(ModeHTTP, engine.Progress{
+				Completed: int64(i + 1), Total: int64(len(files)),
+			})
 		}
 	}
 

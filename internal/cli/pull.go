@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"time"
@@ -58,7 +59,7 @@ func newPullCmd() *cobra.Command {
 			if !f.json {
 				fmt.Fprintf(os.Stderr, "pulling %s\n", r)
 			}
-			res, err := pull.Run(cmd.Context(), r, pull.Options{
+			opts := pull.Options{
 				Store:         st,
 				HF:            hfc,
 				BootstrapURLs: bootstraps,
@@ -66,9 +67,17 @@ func newPullCmd() *cobra.Command {
 				P2PGrace:      f.grace,
 				EngineCfg:     engine.Config{ListenPort: f.listenPort},
 				Log:           slog.Default(),
-			})
+			}
+			var progressShown bool
+			if !f.json {
+				opts.OnProgress = progressPrinter(os.Stderr, &progressShown)
+			}
+			res, err := pull.Run(cmd.Context(), r, opts)
 			if err != nil {
 				return err
+			}
+			if progressShown {
+				fmt.Fprintln(os.Stderr)
 			}
 			if f.json {
 				return json.NewEncoder(os.Stdout).Encode(res)
@@ -97,4 +106,42 @@ func shortRev(rev string) string {
 		return rev[:12]
 	}
 	return rev
+}
+
+// progressPrinter renders a single self-rewriting stderr line per progress
+// mode. The returned function is safe for repeated ticks; a newline must be
+// printed by the caller when the operation completes.
+func progressPrinter(w io.Writer, shown *bool) func(string, engine.Progress) {
+	return func(mode string, p engine.Progress) {
+		if p.Total <= 0 {
+			return
+		}
+		var line string
+		switch mode {
+		case pull.ModeP2P:
+			pct := 100 * p.Completed / p.Total
+			line = fmt.Sprintf("swarm %3d%% | %s / %s | peers %d",
+				pct, humanBytes(p.Completed), humanBytes(p.Total), p.Peers)
+		case pull.ModeHTTP:
+			line = fmt.Sprintf("http %d/%d files fetched", p.Completed, p.Total)
+		default:
+			return
+		}
+		fmt.Fprintf(w, "\r\033[K%s", line)
+		*shown = true
+	}
+}
+
+func humanBytes(n int64) string {
+	const unit = 1024
+	switch {
+	case n >= unit*unit*unit:
+		return fmt.Sprintf("%.1f GiB", float64(n)/(unit*unit*unit))
+	case n >= unit*unit:
+		return fmt.Sprintf("%.1f MiB", float64(n)/(unit*unit))
+	case n >= unit:
+		return fmt.Sprintf("%.0f KiB", float64(n)/unit)
+	default:
+		return fmt.Sprintf("%d B", n)
+	}
 }
