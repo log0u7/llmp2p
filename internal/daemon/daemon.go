@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/log0u7/llmp2p/internal/engine"
@@ -29,6 +30,9 @@ type Server struct {
 	engines   map[string]*engine.Engine // keyed by owner dir
 	startedAt time.Time
 	version   string
+
+	mu        sync.Mutex
+	pullStats map[string]int // pull jobs by outcome, read by /metrics
 }
 
 // Options configures Run.
@@ -95,6 +99,7 @@ func Run(ctx context.Context, opts Options) error {
 	mux.HandleFunc("GET /api/v1/status", srv.handleStatus)
 	mux.HandleFunc("GET /api/v1/models", srv.handleModels)
 	mux.HandleFunc("GET /api/v1/torrents", srv.handleTorrents)
+	mux.HandleFunc("GET /metrics", srv.writeMetrics)
 	httpSrv := &http.Server{
 		Addr:              addr,
 		Handler:           mux,

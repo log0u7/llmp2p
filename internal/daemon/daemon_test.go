@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -153,5 +155,60 @@ func TestDaemonRefusesSecondInstance(t *testing.T) {
 			t.Fatalf("first daemon exited early: %v", err)
 		}
 	default:
+	}
+}
+
+func TestMetricsEndpoint(t *testing.T) {
+	st, err := store.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	fakeModel(t, st, "org/model", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+	port := freePort(t)
+	addr := fmt.Sprintf("127.0.0.1:%d", port)
+	ctx, cancel := context.WithCancel(context.Background())
+	errCh := make(chan error, 1)
+	go func() { errCh <- Run(ctx, Options{Store: st, ListenAddr: addr, Version: "test"}) }()
+	defer func() {
+		cancel()
+		<-errCh
+	}()
+
+	resp, err := waitUp(t, addr, "/metrics")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	text := string(body)
+	for _, want := range []string{
+		"# TYPE llmp2pd_uptime_seconds gauge",
+		"llmp2pd_models 1",
+		"# TYPE llmp2pd_uploaded_bytes_total counter",
+		"llmp2pd_pulls_total 0",
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("metrics missing %q\ngot:\n%s", want, text)
+		}
+	}
+	if ct := resp.Header.Get("Content-Type"); !strings.HasPrefix(ct, "text/plain") {
+		t.Errorf("content-type = %q", ct)
+	}
+}
+
+// waitUp polls the daemon API until the path answers, then returns the
+// response.
+func waitUp(t *testing.T, addr, path string) (*http.Response, error) {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		resp, err := http.Get(fmt.Sprintf("http://%s%s", addr, path))
+		if err == nil {
+			return resp, nil
+		}
+		if time.Now().After(deadline) {
+			return nil, err
+		}
+		time.Sleep(50 * time.Millisecond)
 	}
 }
