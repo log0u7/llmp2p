@@ -21,8 +21,11 @@ Hub. **Bad fit**: first pull of a model nobody seeds.
 
 ## Quickstart
 
-Install the CLI and the daemon (Go 1.25+; the `go.mod` pins the toolchain,
-`GOTOOLCHAIN=auto` handles it):
+Install the CLI and the daemon, from the
+[release page](https://github.com/log0u7/llmp2p/releases) (linux/macos/windows
+binaries; on macOS, clear the Gatekeeper flag on first run:
+`xattr -d com.apple.quarantine llmp2p`), or with Go 1.25+ (the `go.mod` pins
+the toolchain, `GOTOOLCHAIN=auto` handles it):
 
 ```sh
 go install github.com/log0u7/llmp2p/cmd/llmp2p@latest

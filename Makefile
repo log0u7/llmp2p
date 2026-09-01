@@ -4,7 +4,7 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo 0.0.
 LDFLAGS := -s -w -X github.com/log0u7/llmp2p/internal/cli.version=$(VERSION)
 GOLANGCI := $(shell command -v golangci-lint 2>/dev/null || echo $(HOME)/go/bin/golangci-lint)
 
-.PHONY: all build test race vet lint fmt install clean
+.PHONY: all build test race vet lint fmt install clean dist
 
 all: build
 
@@ -38,3 +38,20 @@ install:
 
 clean:
 	rm -rf bin
+
+DIST := dist
+DIST_MATRIX := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
+
+.PHONY: dist
+
+dist:
+	@mkdir -p $(DIST)
+	@for target in $(DIST_MATRIX); do \
+		os=$${target%/*}; arch=$${target#*/}; ext=""; \
+		if [ "$$os" = "windows" ]; then ext=".exe"; fi; \
+		for bin in llmp2p llmp2pd; do \
+			CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch go build -trimpath -ldflags '$(LDFLAGS)' \
+				-o $(DIST)/$$bin-$$os-$$arch$$ext ./cmd/$$bin || exit 1; \
+		done; \
+	done
+	@ls -la $(DIST)
