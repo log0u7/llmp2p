@@ -7,7 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.0.0] - 2026-09-01
+## [0.0.1] - 2026-09-01
+
+### Added
+
+- `llmp2p remove <ref>`: delete a model from the store (files, torrent,
+  manifest, local index entry) with a size-aware confirmation prompt.
+- `llmp2p verify <ref>`: re-hash a stored model against its manifest, human
+  or JSON output.
+- Pull progress: self-rewriting swarm line (percent, bytes, peers) and a
+  fetched-file counter for the HTTP fallback.
+- Prebuilt binaries attached to GitHub Releases: llmp2p + llmp2pd for
+  linux/amd64+arm64, darwin/amd64+arm64, windows/amd64.
+- Service units: systemd user service, macOS LaunchAgent, NSSM script for
+  Windows ([deploy/](deploy/)).
+- Platform-appropriate default store dir: XDG on Linux, Application Support
+  on macOS, LOCALAPPDATA on Windows.
+- mise-based dev environment ([mise.toml](mise.toml)): go, golangci-lint and
+  gitleaks pinned to the versions CI uses.
+- `govulncheck` CI job, Dependabot (go modules + actions), SECURITY.md,
+  .editorconfig, actions pinned to commit SHAs, main branch protected
+  against force pushes.
+
+### Changed
+
+- README reworked: badges, mermaid diagrams, GitHub-compatible mermaid
+  syntax, mutually exclusive install paths.
+- GitHub Release workflow creates releases with generated notes.
+
+### Fixed
+
+- Corrupted cached files now trigger a transparent re-pull instead of a hard
+  error.
+- Bumped the Go toolchain to 1.25.14 and the vulnerable modules
+  (x/net, gorilla/websocket, pion/dtls, pion/stun): govulncheck reports zero
+  reachable vulnerabilities.
+
+[Unreleased]: https://github.com/log0u7/llmp2p/compare/v0.0.1...HEAD
+[0.0.1]: https://github.com/log0u7/llmp2p/compare/v0.0.0...v0.0.1
+[0.0.0]: https://github.com/log0u7/llmp2p/releases/tag/v0.0.0
 
 Initial experimental release.
 
@@ -29,5 +67,4 @@ Initial experimental release.
 - Documentation set (Diataxis layout) and ADRs (MADR).
 - CI: go vet, race tests, golangci-lint, gitleaks; pre-commit gitleaks hook.
 
-[Unreleased]: https://github.com/log0u7/llmp2p/compare/v0.0.0...HEAD
-[0.0.0]: https://github.com/log0u7/llmp2p/releases/tag/v0.0.0
+
