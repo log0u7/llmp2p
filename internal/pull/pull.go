@@ -502,7 +502,7 @@ func fetchManifestSignature(client *http.Client, bases []string, manifestSHA str
 			continue
 		}
 		body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if err != nil || resp.StatusCode != http.StatusOK {
 			continue
 		}

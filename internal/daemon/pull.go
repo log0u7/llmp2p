@@ -58,8 +58,9 @@ func newPullQueue(srv *Server, template pull.Options, log *slog.Logger) *pullQue
 	}
 }
 
-// enqueue registers a pull job and starts it in the background.
-func (q *pullQueue) enqueue(ctx context.Context, r *ref.Ref, httpOnly bool) (*pullJob, error) {
+// enqueue registers a pull job and starts it in the background. It returns
+// a snapshot copy: the live job is only touched under the queue lock.
+func (q *pullQueue) enqueue(ctx context.Context, r *ref.Ref, httpOnly bool) (pullJob, error) {
 	job := &pullJob{
 		ID:       newJobID(),
 		Ref:      r.String(),
@@ -69,10 +70,11 @@ func (q *pullQueue) enqueue(ctx context.Context, r *ref.Ref, httpOnly bool) (*pu
 	q.mu.Lock()
 	q.jobs[job.ID] = job
 	q.order = append(q.order, job.ID)
+	snapshot := *job
 	q.mu.Unlock()
 
 	go q.run(ctx, job, r, httpOnly)
-	return job, nil
+	return snapshot, nil
 }
 
 func (q *pullQueue) run(ctx context.Context, job *pullJob, r *ref.Ref, httpOnly bool) {
