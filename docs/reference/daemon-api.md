@@ -43,6 +43,35 @@ Array of torrent statuses:
 }]
 ```
 
+## `POST /api/v1/pulls`
+
+Delegate a pull to the daemon (202 Accepted, sequential queue):
+
+```json
+{"ref": "hf:owner/repo", "httpOnly": false}
+```
+
+Response: `{"id": "hex16", "ref": "...", "status": "queued", ...}`.
+Whole models only (`#/path` rejected). Requires no other pull to be running
+(store lock); the job keeps running after the HTTP call returns.
+
+## `GET /api/v1/pulls/{id}`
+
+Job state: `status` is `queued`, `running`, `succeeded` or `failed`; a
+successful job carries the pull `result` (same shape as
+`llmp2p pull --json`).
+
+## `GET /api/v1/pulls`
+
+Array of all pull jobs, oldest first.
+
+## `GET /metrics`
+
+Prometheus text exposition (0.0.4): `llmp2pd_uptime_seconds`,
+`llmp2pd_models`, `llmp2pd_torrents`, `llmp2pd_peers`,
+`llmp2pd_seeding_engines`, `llmp2pd_uploaded_bytes_total`,
+`llmp2pd_downloaded_bytes_total`, `llmp2pd_pulls_total{result}`.
+
 ## Errors
 
 Unrouted paths return Go's `404 page not found`. The server never exposes

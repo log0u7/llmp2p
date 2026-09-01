@@ -24,6 +24,10 @@ It waits for any running `llmp2p` command to finish (the store lock is
 exclusive), then seeds every model it finds and serves the status API on
 `127.0.0.1:8347` (loopback only). Stop with Ctrl-C.
 
+While the daemon runs, `llmp2p pull` delegates to it automatically (the
+daemon owns the store) and `llmp2p seed` is a no-op: the daemon already
+seeds everything. See [reference/daemon-api.md](../reference/daemon-api.md).
+
 ## Linux: systemd (user service)
 
 A unit file ships in [deploy/systemd/llmp2pd.service](../../deploy/systemd/llmp2pd.service):

@@ -24,6 +24,8 @@ type pullFlags struct {
 	grace      time.Duration
 	token      string
 	json       bool
+	daemonURL  string
+	noDaemon   bool
 }
 
 func newPullCmd() *cobra.Command {
@@ -59,6 +61,17 @@ func newPullCmd() *cobra.Command {
 			if !f.json {
 				fmt.Fprintf(os.Stderr, "pulling %s\n", r)
 			}
+			if !f.noDaemon && daemonUp(f.daemonURL) {
+				job, err := delegatePull(f.daemonURL, r.String(), f.httpOnly)
+				if err != nil {
+					return err
+				}
+				if job.Status != "succeeded" {
+					return fmt.Errorf("daemon pull failed: %s", job.Error)
+				}
+				printPullSummary(job.Result, f.json)
+				return nil
+			}
 			opts := pull.Options{
 				Store:         st,
 				HF:            hfc,
@@ -79,16 +92,7 @@ func newPullCmd() *cobra.Command {
 			if progressShown {
 				fmt.Fprintln(os.Stderr)
 			}
-			if f.json {
-				return json.NewEncoder(os.Stdout).Encode(res)
-			}
-			mode := res.Mode
-			fmt.Printf("pulled %s @%s via %s: %d files, %.1f MiB\n",
-				res.Model, shortRev(res.Revision), mode, res.Files, float64(res.Size)/(1<<20))
-			fmt.Printf("manifest %s\ninfohash %s\n", res.ManifestSHA256, res.InfoHash)
-			if mode != pull.ModeCache {
-				fmt.Printf("to keep sharing: llmp2p seed hf:%s\n", res.Model)
-			}
+			printPullSummary(res, f.json)
 			return nil
 		},
 	}
@@ -98,7 +102,25 @@ func newPullCmd() *cobra.Command {
 	cmd.Flags().DurationVar(&f.grace, "grace", pull.DefaultP2PGrace, "wait for swarm data before falling back to HTTP")
 	cmd.Flags().StringVar(&f.token, "token", "", "Hugging Face access token (default: $HF_TOKEN)")
 	cmd.Flags().BoolVar(&f.json, "json", false, "print machine-readable result")
+	cmd.Flags().StringVar(&f.daemonURL, "daemon", DefaultDaemonURL, "daemon URL to delegate pulls to when running")
+	cmd.Flags().BoolVar(&f.noDaemon, "no-daemon", false, "never delegate to a running daemon")
 	return cmd
+}
+
+// printPullSummary renders the final pull result, human or JSON.
+func printPullSummary(res pull.Result, asJSON bool) {
+	if asJSON {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		_ = enc.Encode(res)
+		return
+	}
+	fmt.Printf("pulled %s @%s via %s: %d files, %.1f MiB\n",
+		res.Model, shortRev(res.Revision), res.Mode, res.Files, float64(res.Size)/(1<<20))
+	fmt.Printf("manifest %s\ninfohash %s\n", res.ManifestSHA256, res.InfoHash)
+	if res.Mode != pull.ModeCache {
+		fmt.Printf("to keep sharing: llmp2p seed hf:%s\n", res.Model)
+	}
 }
 
 func shortRev(rev string) string {

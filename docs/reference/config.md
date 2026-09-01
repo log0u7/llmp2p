@@ -7,6 +7,7 @@ llmp2p is flag-and-environment driven in v0; there is no config file yet.
 | Variable | Used by | Meaning |
 |---|---|---|
 | `HF_TOKEN` | `pull` | Hugging Face access token when `--token` is absent |
+| `HF_ENDPOINT` | all | Hub mirror override (e.g. `https://hf-mirror.com`) |
 | `XDG_DATA_HOME` | all | relocates the store (default `~/.local/share`) |
 | `OLLAMA_HOST` | - | not read by llmp2p: pass `--host` explicitly |
 

@@ -23,7 +23,13 @@ Reference grammar: `hf:owner/repo[@revision][#/path/to/file]`.
 | `--grace <duration>` | `90s` | wait for swarm data before HTTP fallback |
 | `--listen-port <port>` | random | BitTorrent TCP/UDP listen port |
 | `--token <token>` | `$HF_TOKEN` | Hub access token (gated repos, rate limits) |
+| `--daemon <url>` | `http://127.0.0.1:8347` | delegate to a running daemon |
+| `--no-daemon` | off | never delegate, always run locally |
 | `--json` | off | machine-readable result on stdout |
+
+When a daemon is running, `pull` delegates to it automatically (the daemon
+owns the store lock) and polls the job; otherwise the pull runs locally.
+Delegated pulls cover whole models only.
 
 Result fields (`--json`): `model`, `revision`, `mode` (`cache`, `p2p`, `http`),
 `files`, `size`, `infoHash`, `manifestSha256`.
@@ -53,6 +59,9 @@ Register a GGUF in Ollama via `ollama create` with a generated Modelfile.
 | Flag | Default | Meaning |
 |---|---|---|
 | `--json` | off | array of `{model, revision, files, size}` |
+
+When a daemon is running, `seed` prints its status instead: the daemon
+already seeds the whole store.
 
 ## `llmp2p verify <ref>`
 

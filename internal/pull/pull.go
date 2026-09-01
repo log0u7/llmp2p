@@ -50,6 +50,9 @@ type Options struct {
 	HTTPOnly bool
 	// P2PGrace overrides DefaultP2PGrace.
 	P2PGrace time.Duration
+	// NoLock skips the store lock acquisition. Only for callers that
+	// already hold it (the daemon runs pulls inside its own lock).
+	NoLock bool
 	// OnProgress receives periodic download progress.
 	OnProgress func(mode string, p engine.Progress)
 	// Log receives structured progress lines; nil disables logging.
@@ -72,11 +75,13 @@ func Run(ctx context.Context, r *ref.Ref, opts Options) (Result, error) {
 	if opts.Store == nil {
 		return Result{}, fmt.Errorf("pull: store is required")
 	}
-	release, err := opts.Store.Lock(15 * time.Second)
-	if err != nil {
-		return Result{}, err
+	if !opts.NoLock {
+		release, err := opts.Store.Lock(15 * time.Second)
+		if err != nil {
+			return Result{}, err
+		}
+		defer release()
 	}
-	defer release()
 
 	hfc := opts.HF
 	if hfc == nil {

@@ -26,6 +26,11 @@ func newSeedCmd() *cobra.Command {
 		Example: `  llmp2p seed hf:Qwen/Qwen3-Coder-30B-A3B-GGUF
   llmp2p seed ~/models/model-Q4_K_M.gguf.torrent --data-dir ~/models`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if daemonUp(DefaultDaemonURL) {
+				fmt.Println("a daemon is already running and seeds the whole store")
+				fmt.Printf("status: %s/api/v1/status\n", DefaultDaemonURL)
+				return nil
+			}
 			arg := args[0]
 			torrentPath, dataRoot, err := resolveSeedTarget(arg, dataDir)
 			if err != nil {

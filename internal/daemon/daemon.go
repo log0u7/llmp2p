@@ -18,8 +18,23 @@ import (
 
 	"github.com/log0u7/llmp2p/internal/engine"
 	"github.com/log0u7/llmp2p/internal/manifest"
+	"github.com/log0u7/llmp2p/internal/pull"
 	"github.com/log0u7/llmp2p/internal/store"
 )
+
+// defaultPullTemplate builds the delegated pull configuration from the
+// daemon options. NoLock is forced: the daemon already owns the store lock.
+func defaultPullTemplate(opts Options) pull.Options {
+	template := pull.Options{Store: opts.Store, NoLock: true}
+	if opts.PullTemplate != nil {
+		template = *opts.PullTemplate
+		template.NoLock = true
+		if template.Store == nil {
+			template.Store = opts.Store
+		}
+	}
+	return template
+}
 
 // DefaultAddr is the loopback status API address.
 const DefaultAddr = "127.0.0.1:8347"
@@ -30,6 +45,7 @@ type Server struct {
 	engines   map[string]*engine.Engine // keyed by owner dir
 	startedAt time.Time
 	version   string
+	pulls     *pullQueue
 
 	mu        sync.Mutex
 	pullStats map[string]int // pull jobs by outcome, read by /metrics
@@ -41,8 +57,11 @@ type Options struct {
 	ListenAddr string // default DefaultAddr
 	// EngineOverrides applied to every seeder engine (ports, debug...).
 	EngineOverrides func(*engine.Config)
-	Log             *slog.Logger
-	Version         string
+	// PullTemplate is the base configuration for delegated pull jobs;
+	// nil builds a default one from the store (NoLock is forced).
+	PullTemplate *pull.Options
+	Log          *slog.Logger
+	Version      string
 }
 
 type statusResponse struct {
@@ -82,6 +101,7 @@ func Run(ctx context.Context, opts Options) error {
 	if srv.version == "" {
 		srv.version = "0.0.0"
 	}
+	srv.pulls = newPullQueue(srv, defaultPullTemplate(opts), opts.Log)
 	if err := srv.startSeeders(ctx, opts); err != nil {
 		return err
 	}
@@ -100,6 +120,9 @@ func Run(ctx context.Context, opts Options) error {
 	mux.HandleFunc("GET /api/v1/models", srv.handleModels)
 	mux.HandleFunc("GET /api/v1/torrents", srv.handleTorrents)
 	mux.HandleFunc("GET /metrics", srv.writeMetrics)
+	mux.HandleFunc("POST /api/v1/pulls", srv.handlePullCreate)
+	mux.HandleFunc("GET /api/v1/pulls/{id}", srv.handlePullGet)
+	mux.HandleFunc("GET /api/v1/pulls", srv.handlePullList)
 	httpSrv := &http.Server{
 		Addr:              addr,
 		Handler:           mux,

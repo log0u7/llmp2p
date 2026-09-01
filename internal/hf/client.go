@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 )
@@ -41,10 +42,15 @@ type Client struct {
 	HTTP *http.Client
 }
 
-// New returns a Client using DefaultBaseURL and the default transport.
+// New returns a Client using DefaultBaseURL (or $HF_ENDPOINT for Hub
+// mirrors) and the default transport.
 func New() *Client {
+	base := DefaultBaseURL
+	if mirror := os.Getenv("HF_ENDPOINT"); mirror != "" {
+		base = mirror
+	}
 	return &Client{
-		BaseURL: DefaultBaseURL,
+		BaseURL: base,
 		HTTP: &http.Client{
 			Timeout: 30 * time.Second,
 		},
