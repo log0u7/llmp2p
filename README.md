@@ -28,6 +28,15 @@ go install github.com/log0u7/llmp2p/cmd/llmp2p@latest
 go install github.com/log0u7/llmp2p/cmd/llmp2pd@latest
 ```
 
+Building from source? [mise](https://mise.jdx.dev) pins the whole dev
+environment (`go`, `golangci-lint`, `gitleaks`) in [mise.toml](mise.toml):
+
+```sh
+git clone https://github.com/log0u7/llmp2p.git && cd llmp2p
+mise install      # first task run may ask for `mise trust`
+make build        # bin/llmp2p + bin/llmp2pd
+```
+
 Pull, import, share:
 
 ```sh

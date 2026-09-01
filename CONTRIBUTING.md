@@ -7,12 +7,19 @@ committed artifacts (code, comments, docs, commit messages).
 
 ```sh
 git clone git@github.com:log0u7/llmp2p.git && cd llmp2p
-go build ./...
-go test ./...
+mise install
+make build
+make test
 ```
 
-Go version is pinned in `go.mod`; with `GOTOOLCHAIN=auto` (default since Go 1.21)
-no manual setup is needed.
+[mise](https://mise.jdx.dev) pins the dev toolchain in `mise.toml`: `go`
+(matches `go.mod`), `golangci-lint` (same version as CI) and `gitleaks` (same
+version as the pre-commit hook). Run `mise trust` once if asked, or use
+`mise exec -- make lint` to bypass activation. Without mise, Go 1.25+ with
+`GOTOOLCHAIN=auto` is enough; install golangci-lint v2.13.2 yourself for `make
+lint` to run the full linter.
+
+Go version is pinned in `go.mod`.
 
 ## Commits
 
