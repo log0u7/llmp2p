@@ -21,23 +21,15 @@ Hub. **Bad fit**: first pull of a model nobody seeds.
 
 ## Quickstart
 
-Install (Go 1.25+; the `go.mod` pins the toolchain, `GOTOOLCHAIN=auto` handles it):
+Install the CLI and the daemon (Go 1.25+; the `go.mod` pins the toolchain,
+`GOTOOLCHAIN=auto` handles it):
 
 ```sh
 go install github.com/log0u7/llmp2p/cmd/llmp2p@latest
 go install github.com/log0u7/llmp2p/cmd/llmp2pd@latest
 ```
 
-Building from source? [mise](https://mise.jdx.dev) pins the whole dev
-environment (`go`, `golangci-lint`, `gitleaks`) in [mise.toml](mise.toml):
-
-```sh
-git clone https://github.com/log0u7/llmp2p.git && cd llmp2p
-mise install      # first task run may ask for `mise trust`
-make build        # bin/llmp2p + bin/llmp2pd
-```
-
-Pull, import, share:
+Then pull, import, share:
 
 ```sh
 llmp2p pull hf:Qwen/Qwen2.5-0.5B-Instruct-GGUF
@@ -50,6 +42,18 @@ curl -s localhost:8347/api/v1/status | jq
 
 Expected result after `pull`: a `manifest <sha256>` / `infohash <40hex>` line
 pair, and `llmp2p list` showing the model with its pinned revision.
+
+### Alternative: build from source
+
+Instead of `go install`, build from a clone.
+[mise](https://mise.jdx.dev) pins the whole dev environment (`go`,
+`golangci-lint`, `gitleaks`) in [mise.toml](mise.toml):
+
+```sh
+git clone https://github.com/log0u7/llmp2p.git && cd llmp2p
+mise install      # first task run may ask for `mise trust`
+make build        # bin/llmp2p + bin/llmp2pd
+```
 
 ## How a pull works
 
