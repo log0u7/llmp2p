@@ -11,15 +11,15 @@ flowchart TB
     DAEMON["cmd/llmp2pd"] --> DI["internal/daemon"]
     CLII --> PULL["internal/pull"]
     DI --> PULL
-    PULL --> REF["ref<br/>hf: refs"]
-    PULL --> HF["hf<br/>Hub client"]
-    PULL --> MAN["manifest<br/>llmp2p/v1"]
-    PULL --> IDX["index<br/>bootstrap"]
-    PULL --> ENG["engine<br/>anacrolix/torrent"]
-    PULL --> OLL["ollama<br/>adapter"]
+    PULL --> REF["ref<br>hf: refs"]
+    PULL --> HF["hf<br>Hub client"]
+    PULL --> MAN["manifest<br>llmp2p/v1"]
+    PULL --> IDX["index<br>bootstrap"]
+    PULL --> ENG["engine<br>anacrolix/torrent"]
+    PULL --> OLL["ollama<br>adapter"]
     HF --> HUB["Hugging Face API"]
-    ENG --> BT["mainline DHT<br/>BEP 9 metadata"]
-    ST[("store<br/>flock + XDG layout")]
+    ENG --> BT["mainline DHT<br>BEP 9 metadata"]
+    ST[("store<br>flock + XDG layout")]
     ENG -.-> ST
     MAN -.-> ST
     IDX -.-> ST

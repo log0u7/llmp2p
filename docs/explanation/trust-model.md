@@ -7,10 +7,10 @@ not (yet).
 
 ```mermaid
 flowchart LR
-    O["Bootstrap origin<br/>HTTPS, PR-reviewed index"] -->|"pins manifestSha256"| M["Manifest<br/>content-addressed JSON"]
-    M -->|"pins infoHash + per-file sha256"| I["Metainfo<br/>sha1-bound to infoHash"]
+    O["Bootstrap origin<br>HTTPS, PR-reviewed index"] -->|"pins manifestSha256"| M["Manifest<br>content-addressed JSON"]
+    M -->|"pins infoHash and per-file sha256"| I["Metainfo<br>sha1-bound to infoHash"]
     I -->|"piece hashes verify swarm bytes"| S["Swarm bytes"]
-    S -->|"final per-file sha256<br/>(LFS: == Hub-published oid)"| D["Model in store"]
+    S -->|"final per-file sha256<br>LFS equals Hub-published oid"| D["Model in store"]
 ```
 
 ## What each link gives you

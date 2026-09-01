@@ -59,14 +59,14 @@ make build        # bin/llmp2p + bin/llmp2pd
 
 ```mermaid
 flowchart TD
-    A["llmp2p pull hf:owner/repo"] --> B["Resolve on the Hub<br/>pin revision · list files · LFS sha256"]
-    B --> C{"Local files already match<br/>the pinned revision?"}
-    C -- "yes" --> Z["cache hit"]
-    C -- "no" --> D{"Bootstrap index entry<br/>for this revision?"}
-    D -- "yes" --> E["Join the swarm<br/>BitTorrent DHT · BEP 9 metadata"]
-    E -- "no data within grace" --> F
-    D -- "no" --> F["HTTPS download from the Hub<br/>resume · sha256"]
-    E --> G["Final per-file<br/>sha256 verification"]
+    A["llmp2p pull hf:owner/repo"] --> B["Resolve on the Hub<br>pin revision, list files, LFS sha256"]
+    B --> C{"Local files already match<br>the pinned revision?"}
+    C -->|yes| Z["cache hit"]
+    C -->|no| D{"Bootstrap index entry<br>for this revision?"}
+    D -->|yes| E["Join the swarm<br>BitTorrent DHT, BEP 9 metadata"]
+    E -->|"no data within grace"| F
+    D -->|no| F["HTTPS download from the Hub<br>resume, sha256"]
+    E --> G["Final per-file<br>sha256 verification"]
     F --> G
     G --> H[("Store")]
     H --> I["llmp2pd keeps it seeding"]
