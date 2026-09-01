@@ -1,97 +1,113 @@
 # llmp2p
 
-P2P distribution of LLM model artifacts. Pull Hugging Face model repositories through a
-BitTorrent swarm when peers exist, fall back to HTTPS from the Hub when they do not,
-and keep your models seeding for everyone else.
+[![CI](https://github.com/log0u7/llmp2p/actions/workflows/ci.yml/badge.svg)](https://github.com/log0u7/llmp2p/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/log0u7/llmp2p?sort=semver)](https://github.com/log0u7/llmp2p/releases)
+[![Go](https://img.shields.io/badge/go-1.25-00ADD8?logo=go&logoColor=white)](https://go.dev/doc/devel/release)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-CI badge placeholder: see `.github/workflows/ci.yml` (vet, race tests, golangci-lint, gitleaks).
+P2P distribution of LLM model artifacts: pull Hugging Face model repositories
+through a BitTorrent swarm when peers exist, fall back to HTTPS from the Hub
+when they do not, and keep your models seeding for everyone else.
 
 ## Why
 
-GGUF models are 1-100+ GB files served over plain HTTP. Every download hits the Hub
-again. llmp2p treats models as what they are: large, immutable, content-addressed
-blobs that a swarm can serve far better than a single origin. The more popular a
-model, the faster it distributes.
+GGUF models are 1-100+ GB files served over plain HTTP: every download hits the
+Hub again. llmp2p treats models as what they are, large immutable
+content-addressed blobs that a swarm serves better than a single origin. The
+more popular a model, the faster it distributes.
 
-## How it works
+**Good fit**: sharing GGUF repos, homelabs with several machines, sparing the
+Hub. **Bad fit**: first pull of a model nobody seeds (the Hub fallback exists
+for exactly that, but it is not magic).
 
-```
-llmp2p pull hf:owner/repo
-  |
-  | resolve on the Hub (pin revision, list files, LFS sha256)
-  |
-  | bootstrap index hit?  ── yes ─> join swarm (BitTorrent, DHT)  ─┐
-  |        | no                                                    |
-  |        v                                                       |
-  |  download over HTTPS (resume + sha256)                         |
-  |        |                                                       |
-  |        v                                                       |
-  |  generate manifest + torrent, publish locally, seed            |
-  |________________________________________________________________|
-  |
-  v
-  final per-file sha256 verification  ->  store  ->  (optional) ollama import
-```
+## Quickstart
 
-Every byte is verified twice: against torrent piece hashes during transfer, and
-against sha256 (Hub LFS oid) at the end. Details in
-[docs/explanation/trust-model.md](docs/explanation/trust-model.md).
-
-## Install
+Install (Go 1.25+; the `go.mod` pins the toolchain, `GOTOOLCHAIN=auto` handles it):
 
 ```sh
 go install github.com/log0u7/llmp2p/cmd/llmp2p@latest
 go install github.com/log0u7/llmp2p/cmd/llmp2pd@latest
 ```
 
-Requires Go 1.25+ (the go.mod pins the exact toolchain; `GOTOOLCHAIN=auto` handles it).
-
-## Quickstart
+Pull, import, share:
 
 ```sh
-# Pull a small model (P2P if a swarm exists, HTTPS otherwise)
 llmp2p pull hf:Qwen/Qwen2.5-0.5B-Instruct-GGUF
-
-# Import it into Ollama
 llmp2p import hf:Qwen/Qwen2.5-0.5B-Instruct-GGUF --name qwen2.5-0.5b
+ollama run qwen2.5-0.5b
 
-# Keep sharing: background seeder + local status API
-llmp2pd
-curl -s localhost:8347/api/v1/status | jq
+llmp2pd                                   # background seeder + status API
+curl -s localhost:8347/api/v1/status | jq # verify it is seeding
 ```
 
-New models you pull are automatically published to your local index
-(`index.json` in the store). To make a model discoverable to everyone, open a PR
-adding its entry to this repository's [index.json](index.json): see
-[docs/how-to/contribute-index-entry.md](docs/how-to/contribute-index-entry.md).
+Expected result after `pull`: a `manifest <sha256>` / `infohash <40hex>` line
+pair, and `llmp2p list` showing the model with its pinned revision.
+
+## How a pull works
+
+```mermaid
+flowchart TD
+    A["llmp2p pull hf:owner/repo"] --> B["Resolve on the Hub<br/>pin revision · list files · LFS sha256"]
+    B --> C{"Local files already match<br/>the pinned revision?"}
+    C -- "yes" --> Z["cache hit"]
+    C -- "no" --> D{"Bootstrap index entry<br/>for this revision?"}
+    D -- "yes" --> E["Join the swarm<br/>BitTorrent DHT · BEP 9 metadata"]
+    E -- "no data within grace" --> F
+    D -- "no" --> F["HTTPS download from the Hub<br/>resume · sha256"]
+    E --> G["Final per-file<br/>sha256 verification"]
+    F --> G
+    G --> H[("Store")]
+    H --> I["llmp2pd keeps it seeding"]
+```
+
+Every byte is verified twice: against torrent piece hashes during transfer, and
+against sha256 (Hub LFS oid) at the end. The HTTPS path generates and publishes
+the manifest; the swarm path fetches it from the bootstrap origin and checks it
+against the index entry.
 
 ## Commands
 
 | Command | Purpose |
 |---|---|
-| `llmp2p pull <ref>` | pull a repo (P2P, then HTTP fallback) |
+| `llmp2p pull <ref>` | pull a repo: swarm, then HTTP fallback |
 | `llmp2p seed <ref\|.torrent>` | seed until interrupted |
 | `llmp2p import <ref\|.gguf>` | register the GGUF in Ollama |
 | `llmp2p list` | show stored models |
 | `llmp2pd` | background seeder + status API on `127.0.0.1:8347` |
 
-Reference: [docs/reference/cli.md](docs/reference/cli.md) and
-[docs/reference/daemon-api.md](docs/reference/daemon-api.md).
+Full grammar and flags: [docs/reference/cli.md](docs/reference/cli.md) ·
+daemon API: [docs/reference/daemon-api.md](docs/reference/daemon-api.md).
+
+## Make a model discoverable
+
+Every pull publishes to your local index. To share with everyone, open a PR
+adding the entry (and its manifest) to this repository's
+[index.json](index.json): [docs/how-to/contribute-index-entry.md](docs/how-to/contribute-index-entry.md).
 
 ## Documentation
 
-Organized as [Diátaxis](https://diataxis.fr/): see [docs/README.md](docs/README.md).
+Organized as [Diátaxis](https://diataxis.fr/): start at
+[docs/README.md](docs/README.md).
 
-- Learn: [docs/tutorials/get-started.md](docs/tutorials/get-started.md)
-- Tasks: [docs/how-to/](docs/how-to/)
-- Facts: [docs/reference/](docs/reference/)
-- Understanding: [docs/explanation/](docs/explanation/) (architecture, trust model, protocol)
-- Decisions: [docs/adr/](docs/adr/) (MADR records)
+| I want to... | Read |
+|---|---|
+| learn hands-on, start to finish | [tutorials/get-started.md](docs/tutorials/get-started.md) |
+| solve a specific task | [docs/how-to/](docs/how-to/) |
+| look up a command, flag, or schema | [docs/reference/](docs/reference/) |
+| understand how and why it works | [docs/explanation/](docs/explanation/) (architecture, trust model, protocol) |
+| know why the code looks this way | [docs/adr/](docs/adr/) (7 MADR decision records) |
 
 ## Status
 
-v0.0.0: experimental. Single-file GGUF repos work end to end; expect protocol
-changes before 1.0. See [ROADMAP.md](ROADMAP.md).
+v0.0.0, experimental: single-file GGUF repos work end to end, the protocol may
+still change before 1.0. See [ROADMAP.md](ROADMAP.md).
+
+## Contributing
+
+[CONTRIBUTING.md](CONTRIBUTING.md): Conventional Commits, atomic changes,
+gitleaks pre-commit hook, tests required. Security issues: see
+[docs/explanation/trust-model.md](docs/explanation/trust-model.md) for what is
+protected before opening an issue.
 
 ## License
 

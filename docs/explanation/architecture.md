@@ -5,22 +5,27 @@ How llmp2p is put together and why. For the wire-level view see
 
 ## The big picture
 
+```mermaid
+flowchart TB
+    CLI["cmd/llmp2p"] --> CLII["internal/cli"]
+    DAEMON["cmd/llmp2pd"] --> DI["internal/daemon"]
+    CLII --> PULL["internal/pull"]
+    DI --> PULL
+    PULL --> REF["ref<br/>hf: refs"]
+    PULL --> HF["hf<br/>Hub client"]
+    PULL --> MAN["manifest<br/>llmp2p/v1"]
+    PULL --> IDX["index<br/>bootstrap"]
+    PULL --> ENG["engine<br/>anacrolix/torrent"]
+    PULL --> OLL["ollama<br/>adapter"]
+    HF --> HUB["Hugging Face API"]
+    ENG --> BT["mainline DHT<br/>BEP 9 metadata"]
+    ST[("store<br/>flock + XDG layout")]
+    ENG -.-> ST
+    MAN -.-> ST
+    IDX -.-> ST
 ```
-                cmd/llmp2p            cmd/llmp2pd
-                     |                     |
-                internal/cli          internal/daemon
-                     |                     |
-                internal/pull  <------ shares store + engines
-                     |
-  +--------+---------+-----------+------------+
-  |        |         |           |            |
-ref        hf     manifest     index        engine
-(hf:    (Hub API) (llmp2p/v1) (bootstrap)  (anacrolix/
- refs)   resolve    sha256     JSON       BitTorrent)
-          + download               |
-                                 store (flock, XDG layout)
-                                 ollama (adapter)
-```
+
+The store is shared by exactly one engine at a time (flock).
 
 ## Package responsibilities
 

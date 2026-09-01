@@ -5,20 +5,12 @@ not (yet).
 
 ## The chain
 
-```
-Bootstrap origin (HTTPS, e.g. GitHub raw of this repo)
-   |  pins manifestSha256 per model id
-   v
-Manifest (content-addressed JSON)
-   |  pins infoHash + per-file sha256
-   v
-Metainfo (info dict, sha1-bound to infoHash)
-   |  piece hashes verify swarm bytes during transfer
-   v
-Final per-file sha256 check against the manifest
-   |  (and for LFS files: == Hub-published sha256)
-   v
-Model in store
+```mermaid
+flowchart LR
+    O["Bootstrap origin<br/>HTTPS, PR-reviewed index"] -->|"pins manifestSha256"| M["Manifest<br/>content-addressed JSON"]
+    M -->|"pins infoHash + per-file sha256"| I["Metainfo<br/>sha1-bound to infoHash"]
+    I -->|"piece hashes verify swarm bytes"| S["Swarm bytes"]
+    S -->|"final per-file sha256<br/>(LFS: == Hub-published oid)"| D["Model in store"]
 ```
 
 ## What each link gives you

@@ -38,24 +38,21 @@ origin is this repository's raw GitHub content; origins are user-extensible.
 
 ## Pull state machine
 
-```
-resolve Hub revision        GET /api/models/{id}/revision/{rev} -> sha
-list files                  GET /api/models/{id}/tree/{sha}?recursive=true
-  |
-cache hit?                  local manifest pins sha && files verify -> done
-  |
-index lookup                GET <base>/index.json (all origins)
-  |                            entry.revision == pinned sha?
-  manifest fetch             GET <base>/manifests/<manifestSha256>.json
-  |                            manifest.SHA256 == entry.ManifestSHA256
-  |                            manifest.InfoHash == entry.InfoHash
-  |                            manifest.Revision == pinned sha
-  swarm                      magnet:xt=urn:btih:<infoHash>, DHT + BEP 9
-  |                            no data for --grace -> give up, fall back
-  fallback                   GET /{id}/resolve/{sha}/{path} (resume, hash)
-  |
-publish                     manifest + torrent + local index entry
-verify                      per-file sha256 (LFS: == Hub oid)
+```mermaid
+flowchart TD
+    A["resolve Hub revision<br/>GET /api/models/{id}/revision/{rev}"] --> B["list files<br/>GET /api/models/{id}/tree/{sha}"]
+    B --> C{"cache hit?<br/>local manifest pins sha<br/>and files verify"}
+    C -- "yes" --> DONE
+    C -- "no" --> D["index lookup<br/>GET <base>/index.json (all origins)"]
+    D --> E{"entry for this model<br/>at the pinned revision?"}
+    E -- "no" --> HTTP["HTTP fallback<br/>GET /{id}/resolve/{sha}/{path}<br/>resume + hash"]
+    E -- "yes" --> F["fetch manifest<br/>GET <base>/manifests/{sha}.json<br/>check: manifest.SHA256 == entry.ManifestSHA256<br/>manifest.InfoHash == entry.InfoHash"]
+    F --> G["swarm<br/>magnet:?xt=urn:btih:{infoHash}<br/>DHT + BEP 9"]
+    G -- "no data within grace" --> HTTP
+    G --> PUB
+    HTTP --> PUB["publish<br/>manifest + torrent + local index entry"]
+    PUB --> V["verify<br/>per-file sha256 (LFS: == Hub oid)"]
+    V --> DONE["done"]
 ```
 
 ## BitTorrent specifics
