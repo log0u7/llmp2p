@@ -37,28 +37,29 @@ func dhtNodes(opts Options) ([]anadht.Addr, error) {
 
 // discoverViaDHT resolves the swarm entry for a model from BEP 44 mutable
 // records. Only records signed by an allowlisted publisher key can be
-// found: the target is derived from (key, model id). The record pins the
-// manifest digest; the manifest bytes themselves keep flowing over the
-// HTTPS bootstrap origins.
-func discoverViaDHT(ctx context.Context, opts Options, modelID, revision string) (index.Entry, error) {
+// found: the target is derived from (key, model id). The returned
+// manifest bytes are nil for pointer-only records; when present they were
+// digest-checked against the record and signed by the allowlisted
+// publisher, and the caller can skip HTTPS origins entirely.
+func discoverViaDHT(ctx context.Context, opts Options, modelID, revision string) (index.Entry, []byte, error) {
 	client, err := dht.NewClient(opts.AllowedSigners)
 	if err != nil {
-		return index.Entry{}, err
+		return index.Entry{}, nil, err
 	}
 	conn, err := dht.ListenUDP()
 	if err != nil {
-		return index.Entry{}, fmt.Errorf("dht: listen: %w", err)
+		return index.Entry{}, nil, fmt.Errorf("dht: listen: %w", err)
 	}
 	defer func() { _ = conn.Close() }()
 	srv, err := dht.NewServer(conn)
 	if err != nil {
-		return index.Entry{}, fmt.Errorf("dht: server: %w", err)
+		return index.Entry{}, nil, fmt.Errorf("dht: server: %w", err)
 	}
 	defer srv.Close()
 
 	nodes, err := dhtNodes(opts)
 	if err != nil {
-		return index.Entry{}, err
+		return index.Entry{}, nil, err
 	}
 	var lastErr error
 	for _, node := range nodes {
@@ -77,18 +78,20 @@ func discoverViaDHT(ctx context.Context, opts Options, modelID, revision string)
 			ManifestSHA256: hex.EncodeToString(rec.ManifestSHA256),
 			Revision:       rec.Revision,
 			Size:           rec.Size,
-		}, nil
+		}, rec.Manifest, nil
 	}
 	if lastErr == nil {
 		lastErr = fmt.Errorf("dht: no reachable node")
 	}
-	return index.Entry{}, lastErr
+	return index.Entry{}, nil, lastErr
 }
 
 // publishToDHT stores a signed record for a freshly published model. It
 // is best-effort: failures are logged and never fail the pull. Requires
-// the publisher key created by `llmp2p keygen`.
-func publishToDHT(opts Options, modelID string, infoHash, msha, revision string, size int64) {
+// the publisher key created by `llmp2p keygen`. The canonical manifest
+// bytes are embedded in the record when they fit under the BEP 44 cap;
+// otherwise the record stays pointer-only.
+func publishToDHT(opts Options, modelID string, infoHash, msha, revision string, size int64, manifestBytes []byte) {
 	keyPath := filepath.Join(opts.Store.Root(), signing.DefaultKeyFile)
 	if _, err := os.Stat(keyPath); os.IsNotExist(err) {
 		logf(opts.Log, "dht publish skipped: no publisher key (run llmp2p keygen)")
@@ -108,6 +111,9 @@ func publishToDHT(opts Options, modelID string, infoHash, msha, revision string,
 	if err != nil || len(sha) != 32 {
 		logf(opts.Log, "dht publish skipped: bad manifest sha256", "sha", msha)
 		return
+	}
+	if len(manifestBytes) > dht.MaxEmbeddedManifest {
+		manifestBytes = nil
 	}
 
 	conn, err := dht.ListenUDP()
@@ -129,7 +135,7 @@ func publishToDHT(opts Options, modelID string, infoHash, msha, revision string,
 	}
 
 	pub := dht.NewPublisher(priv, filepath.Join(opts.Store.Root(), "dht-seq.json"))
-	rec := dht.Record{InfoHash: ih, ManifestSHA256: sha, Revision: revision, Size: size}
+	rec := dht.Record{InfoHash: ih, ManifestSHA256: sha, Revision: revision, Size: size, Manifest: manifestBytes}
 	var lastErr error
 	for _, node := range nodes {
 		ctx, cancel := context.WithTimeout(context.Background(), dhtPublishTimeout)

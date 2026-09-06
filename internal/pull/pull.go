@@ -197,16 +197,18 @@ func checkCache(s *store.Store, modelID, revision, modelDir string) (*manifest.M
 // manifest cannot be fetched, or when no data arrives within grace.
 func pullP2P(ctx context.Context, r *ref.Ref, opts Options, revision string, files []hf.FileInfo, modelDir string, grace time.Duration) (Result, error) {
 	// DHT discovery first (BEP 44 mutable records): the record pins the
-	// manifest digest the same way the bootstrap index would. Without an
-	// allowlist there is no trusted target, so the index is consulted.
+	// manifest digest the same way the bootstrap index would, and may
+	// carry the manifest bytes themselves. Without an allowlist there is
+	// no trusted target, so the index is consulted.
 	entry := index.Entry{}
 	entryOK := false
+	var embeddedManifest []byte
 	if opts.DHT && len(opts.AllowedSigners) > 0 {
-		e, err := discoverViaDHT(ctx, opts, r.ID(), revision)
+		e, mb, err := discoverViaDHT(ctx, opts, r.ID(), revision)
 		if err != nil {
 			logf(opts.Log, "dht discovery failed", "err", err)
 		} else {
-			entry, entryOK = e, true
+			entry, embeddedManifest, entryOK = e, mb, true
 		}
 	}
 	if !entryOK {
@@ -224,12 +226,26 @@ func pullP2P(ctx context.Context, r *ref.Ref, opts Options, revision string, fil
 		return Result{}, fmt.Errorf("pull: swarm pinned to revision %s, want %s", entry.Revision, revision)
 	}
 
-	m, err := fetchManifest(opts.HTTPClient, opts.BootstrapURLs, entry, revision)
-	if err != nil {
-		return Result{}, err
-	}
-	if err := verifyManifestSignature(opts, m, opts.BootstrapURLs); err != nil {
-		return Result{}, err
+	var m *manifest.Manifest
+	if len(embeddedManifest) > 0 {
+		// The record signature already authenticated these bytes: the
+		// record is signed by an allowlisted publisher and the embedded
+		// digest was checked against the pinned manifest sha256 by the
+		// dht client. The HTTPS sidecar would be redundant here.
+		parsed, perr := manifest.Parse(embeddedManifest)
+		if perr != nil {
+			return Result{}, fmt.Errorf("pull: dht manifest: %w", perr)
+		}
+		m = parsed
+	} else {
+		fetched, ferr := fetchManifest(opts.HTTPClient, opts.BootstrapURLs, entry, revision)
+		if ferr != nil {
+			return Result{}, ferr
+		}
+		if err := verifyManifestSignature(opts, fetched, opts.BootstrapURLs); err != nil {
+			return Result{}, err
+		}
+		m = fetched
 	}
 
 	engCfg := opts.EngineCfg
@@ -427,9 +443,15 @@ func publish(opts Options, r *ref.Ref, revision string, files []hf.FileInfo, mod
 		}
 	}
 
-	// DHT publication (whole-repo pulls only), best-effort.
+	// DHT publication (whole-repo pulls only), best-effort. The
+	// canonical manifest bytes are embedded when they fit the record cap.
 	if opts.DHT && r.Path == "" {
-		publishToDHT(opts, r.ID(), m.InfoHash, msha, revision, total)
+		canonical, berr := m.Bytes()
+		if berr != nil {
+			logf(opts.Log, "dht publish skipped: canonical bytes unavailable", "err", berr)
+		} else {
+			publishToDHT(opts, r.ID(), m.InfoHash, msha, revision, total, canonical)
+		}
 	}
 
 	return Result{

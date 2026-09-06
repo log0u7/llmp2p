@@ -52,30 +52,6 @@ func udpAddrOf(addr string) anadht.Addr {
 	return anadht.NewAddr(ua)
 }
 
-// storedManifestAndSig reads the content-addressed manifest and its
-// signature sidecar from the store, ready to be served by a bootstrap
-// origin.
-func storedManifestAndSig(t *testing.T, st *store.Store, msha string) ([]byte, []byte) {
-	t.Helper()
-	mpath, err := st.ManifestPath(msha)
-	if err != nil {
-		t.Fatal(err)
-	}
-	mBytes, err := os.ReadFile(mpath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	spath, err := st.SignaturePath(msha)
-	if err != nil {
-		t.Fatal(err)
-	}
-	sigBytes, err := os.ReadFile(spath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return mBytes, sigBytes
-}
-
 func mustPublisherKey(t *testing.T) (ed25519.PrivateKey, string) {
 	t.Helper()
 	p, _, err := signing.LoadOrCreate(filepath.Join(t.TempDir(), signing.DefaultKeyFile))
@@ -141,7 +117,8 @@ func TestDHTPublishAndDiscover(t *testing.T) {
 		t.Fatalf("seed pull mode = %q", first.Mode)
 	}
 
-	// The record is discoverable and pins the published artifacts.
+	// The record is discoverable and pins the published artifacts; the
+	// small fixture manifest fits the embed cap.
 	client, err := dht.NewClient([]string{pubHex})
 	if err != nil {
 		t.Fatal(err)
@@ -155,21 +132,15 @@ func TestDHTPublishAndDiscover(t *testing.T) {
 		hex.EncodeToString(rec.ManifestSHA256) != first.ManifestSHA256 {
 		t.Fatalf("record = %+v, want infohash %s manifest %s", rec, first.InfoHash, first.ManifestSHA256)
 	}
+	if len(rec.Manifest) == 0 {
+		t.Fatal("record must embed the manifest bytes for small manifests")
+	}
 
-	// Bootstrap origin serves manifest + signature sidecar (bytes still
-	// flow over HTTPS origins).
-	mBytes, sigBytes := storedManifestAndSig(t, seedStore, first.ManifestSHA256)
+	// Bootstrap origin serves only an empty index: no manifest bytes, no
+	// signature sidecar. The pull below must succeed on the embedded
+	// manifest alone.
 	boot := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/index.json":
-			_, _ = fmt.Fprintf(w, `{"entries":{}}`) // index empty: discovery is DHT-only
-		case "/manifests/" + first.ManifestSHA256 + ".json":
-			_, _ = w.Write(mBytes)
-		case "/manifests/" + first.ManifestSHA256 + ".json.sig":
-			_, _ = w.Write(sigBytes)
-		default:
-			w.WriteHeader(http.StatusNotFound)
-		}
+		_, _ = w.Write([]byte(`{"entries":{}}`))
 	}))
 	defer boot.Close()
 
@@ -374,5 +345,49 @@ func TestDHTInvalidInputsFallBack(t *testing.T) {
 	}
 	if res2.Mode != ModeHTTP {
 		t.Fatalf("mode = %q, want http fallback", res2.Mode)
+	}
+}
+
+func TestDHTPointerOnlyRecordFallsBackToHTTP(t *testing.T) {
+	var hits atomic.Int64
+	hub := fakeHub(t, &hits)
+	nodeAddr := testDHTNode(t)
+
+	// Pointer-only record (what an oversized manifest produces): signed,
+	// discoverable, but no embedded bytes.
+	priv, pubHex := mustPublisherKey(t)
+	dhtSrv := dhtClientNode(t)
+	pointerOnly := dht.Record{
+		InfoHash:       []byte(strings.Repeat("\xaa", 20)),
+		ManifestSHA256: []byte(strings.Repeat("\xbb", 32)),
+		Revision:       "cafe123",
+		Size:           1,
+	}
+	pub := dht.NewPublisher(priv, filepath.Join(t.TempDir(), "seq.json"))
+	if err := pub.Put(context.Background(), dhtSrv, udpAddrOf(nodeAddr), "org/model", pointerOnly); err != nil {
+		t.Fatal(err)
+	}
+
+	st, err := store.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Discovery finds a pointer-only record: no origins are configured,
+	// so the manifest bytes cannot be fetched and the pull falls back to
+	// the Hub over HTTP.
+	res, err := Run(context.Background(), pullRef(t), Options{
+		Store:          st,
+		HF:             hubAt(hub.URL),
+		HTTPClient:     http.DefaultClient,
+		EngineCfg:      engine.Config{NoDHT: true},
+		DHT:            true,
+		DHTAddrs:       []string{nodeAddr},
+		AllowedSigners: []string{pubHex},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Mode != ModeHTTP {
+		t.Fatalf("mode = %q, want http fallback for a pointer-only record without origins", res.Mode)
 	}
 }
