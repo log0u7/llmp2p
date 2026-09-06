@@ -62,7 +62,7 @@ flowchart TD
 - **BEP 9** (ut_metadata): leechers learn the info dict from peers given only
   the infohash; the manifest is not needed on the wire.
 - **Mainline DHT** (BEP 5) for peer discovery, standard bootstrap routers.
-- **BEP 44 mutable records** (`pull --dht`, ADR-0005): the manifest pointer
+- **BEP 44 mutable records** (`pull --dht`, ADR-0008): the manifest pointer
   (infohash, manifest sha256, revision, size) is a signed record addressed by
   the publisher's ed25519 key; the swarm entry is discoverable without the
   bootstrap index. Manifest bytes keep flowing over HTTPS origins.

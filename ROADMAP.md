@@ -19,7 +19,7 @@ is intent, not commitment.
 
 ## v0.2 - decentralized discovery
 
-- [x] BEP 44 mutable DHT records for manifest discovery (ADR-0005, shipped
+- [x] BEP 44 mutable DHT records for manifest discovery (ADR-0008, shipped
       as an additional `pull --dht` origin; the HTTPS bootstrap index stays
       the default). Prototype findings that shaped the implementation: the
       record expiration must be explicit (a zero Exp expires every record

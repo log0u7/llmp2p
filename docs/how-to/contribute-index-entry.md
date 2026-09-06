@@ -48,7 +48,7 @@ Manifests are served next to it under `manifests/<sha256>.json`.
 ## Why a PR and not only the DHT?
 
 Publishing straight into the mainline DHT (BEP 44) exists since v0.2
-(`pull --dht --allowed-signers <key>`, see ADR-0005), but it requires the
+(`pull --dht --allowed-signers <key>`, see ADR-0008), but it requires the
 puller to trust your publisher key up front. A PR into this index is still
 the way to be discoverable by strangers with no prior key exchange: the
 index is the shared trust root (ADR-0004), the DHT record is per-publisher.

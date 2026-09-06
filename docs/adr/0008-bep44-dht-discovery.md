@@ -1,4 +1,4 @@
-# 5. BEP 44 mutable records as an additional discovery origin
+# 8. BEP 44 mutable records as an additional discovery origin
 
 * Status: accepted
 * Date: 2026-09-06

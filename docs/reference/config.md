@@ -50,7 +50,7 @@ Each origin must serve `index.json` and `manifests/<sha256>.json`.
 ## DHT discovery and publication (v0.2)
 
 `pull --dht --allowed-signers <hex keys>` resolves the swarm entry from BEP 44
-mutable records (see ADR-0005) before consulting the bootstrap origins; the
+mutable records (see ADR-0008) before consulting the bootstrap origins; the
 manifest bytes keep flowing over HTTPS origins unless the record embeds them
 (small manifests, digest-checked). Publication happens automatically after
 every whole-repo pull when a publisher key exists (`llmp2p keygen`) and

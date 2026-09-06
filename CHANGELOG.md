@@ -44,7 +44,7 @@ Security and quality audit of v0.2.0 (docs/audits/2026-09-06.md):
 ### Added
 
 - BEP 44 mutable DHT records for swarm discovery (`pull --dht
-  --allowed-signers <keys>`, ADR-0005): the manifest pointer (infohash,
+  --allowed-signers <keys>`, ADR-0008): the manifest pointer (infohash,
   manifest sha256, revision, size) is a signed record addressed by the
   publisher's ed25519 key, so discovery no longer requires the bootstrap
   index. Manifest bytes keep flowing over HTTPS origins and keep their
