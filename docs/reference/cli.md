@@ -2,8 +2,10 @@
 
 `llmp2p` and `llmp2pd` binaries. Global flag (all `llmp2p` commands):
 
-- `--dir <path>`: model store directory. Default: `$XDG_DATA_HOME/llmp2p`
-  (`~/.local/share/llmp2p`).
+- `--dir <path>`: model store directory. Default follows platform
+  conventions: `$XDG_DATA_HOME/llmp2p` on Linux, `~/Library/Application
+  Support/llmp2p` on macOS, `%LOCALAPPDATA%\llmp2p` on Windows (see
+  [config.md](config.md)).
 
 ## `llmp2p pull <ref>`
 

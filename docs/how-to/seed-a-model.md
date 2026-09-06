@@ -14,8 +14,11 @@ The command resolves the model manifest in the store, loads the matching
 10 seconds:
 
 ```
-qwen2.5-0.5b-instruct-q4_0.gguf peers=3 up=524288000 down=0
+repo-basename peers=3 up=524288000 down=0
 ```
+
+The name is the torrent root name: the repo basename of the model id
+(e.g. `Qwen2.5-0.5B-Instruct-GGUF`), not a file name.
 
 Stop with Ctrl-C.
 

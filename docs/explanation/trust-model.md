@@ -53,12 +53,16 @@ manifest sha256 + revision) is resolved from BEP 44 mutable records instead
 of the bootstrap index. The chain does not change:
 
 - The record is a signed pointer (~110 bytes), never model or manifest bytes.
-- Only records signed by an allowlisted key are addressable at all: the
-  record target is derived from the trusted public key and the model id, so
-  a stranger cannot plant a record where you will look.
+- The record target is `SHA1(publisher public key + salt)`, where the salt is
+  `sha256(model id)`: deterministic on both sides, so only a key on your
+  allowlist can ever publish where you will look, and one sequence counter
+  exists per (publisher, model). A stranger cannot plant a record where you
+  will look.
 - The record pins the manifest sha256; the manifest bytes still come from
   HTTPS origins and still carry their signature sidecar, verified against
-  the same allowlist.
+  the same allowlist. Publishers persist their per-record sequence counters
+  in the store (`dht-seq.json`) so a restarted publisher cannot replay a
+  stale sequence.
 - Everything downstream (infohash binding, piece hashes, final per-file
   sha256) is unchanged.
 

@@ -37,8 +37,9 @@ llmp2p.lock                     exclusive engine lock (flock)
 ## Locking
 
 One engine at a time may use the store: `llmp2p pull`, `llmp2p seed`, and
-`llmp2pd` all take the exclusive flock. `llmp2pd` waits and retries; CLI
-commands fail fast after ~15 s.
+`llmp2pd` all take the exclusive flock. `llmp2pd` waits and retries (2 s
+between attempts) until the lock frees up; CLI commands fail fast after
+~15 s.
 
 ## Bootstrap origins
 
