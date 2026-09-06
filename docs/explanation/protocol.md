@@ -43,7 +43,7 @@ flowchart TD
     A["resolve Hub revision<br>GET /api/models/:id/revision/:rev"] --> B["list files<br>GET /api/models/:id/tree/:sha"]
     B --> C{"cache hit?<br>local manifest pins sha<br>and files verify"}
     C -->|yes| DONE
-    C -->|no| D["index lookup<br>GET BASE/index.json (all origins)"]
+    C -->|no| D["discovery<br>BEP 44 record (with --dht + allowlist)<br>or GET BASE/index.json (all origins)"]
     D --> E{"entry for this model<br>at the pinned revision?"}
     E -->|no| HTTP["HTTP fallback<br>GET :id/resolve/:sha/:path<br>resume + hash"]
     E -->|yes| F["fetch manifest<br>GET BASE/manifests/:sha.json<br>check manifest sha256 and infohash"]
@@ -62,6 +62,10 @@ flowchart TD
 - **BEP 9** (ut_metadata): leechers learn the info dict from peers given only
   the infohash; the manifest is not needed on the wire.
 - **Mainline DHT** (BEP 5) for peer discovery, standard bootstrap routers.
+- **BEP 44 mutable records** (`pull --dht`, ADR-0005): the manifest pointer
+  (infohash, manifest sha256, revision, size) is a signed record addressed by
+  the publisher's ed25519 key; the swarm entry is discoverable without the
+  bootstrap index. Manifest bytes keep flowing over HTTPS origins.
 - Seeding: every completed model is a full seeder; `llmp2pd` keeps swarms alive.
 
 ## Ollama import

@@ -19,12 +19,16 @@ is intent, not commitment.
 
 ## v0.2 - decentralized discovery
 
-- [ ] BEP 44 mutable DHT records for manifest publication (removes the HTTPS-only
-      bootstrap path; see ADR-0004). First wire-level prototype exists; findings
-      so far: the record expiration must be explicit (a zero Exp expires every
-      record instantly), get replies must be parsed from raw bencode (the
-      library response decoder loses dict/string shaped values), and the put
-      query must carry the salt alongside the signature.
+- [x] BEP 44 mutable DHT records for manifest discovery (ADR-0005, shipped
+      as an additional `pull --dht` origin; the HTTPS bootstrap index stays
+      the default and still serves the manifest bytes). Prototype findings
+      that shaped the implementation: the record expiration must be explicit
+      (a zero Exp expires every record instantly), get replies are parsed
+      from raw bencode (the library response decoder loses dict/string
+      shaped values), and the put query must carry the salt alongside the
+      signature.
+- [ ] Swarm-distributed manifest bytes: remove the HTTPS dependency for the
+      manifest payload itself (the record pins its digest already).
 - [ ] Private swarm mode (shared keys for DHT-only discovery without the
       bootstrap index).
 

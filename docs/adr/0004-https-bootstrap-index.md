@@ -1,6 +1,6 @@
 # 4. HTTPS bootstrap index for discovery; BEP 44 deferred
 
-* Status: accepted
+* Status: accepted (DHT discovery shipped in v0.2, see ADR-0005)
 * Date: 2026-09-01
 * Deciders: log0u7
 
@@ -45,3 +45,4 @@ HTTPS bootstrap origins, BEP 44 deferred to v0.1+.
 
 * docs/how-to/contribute-index-entry.md
 * docs/explanation/protocol.md
+* ADR-0005 (BEP 44 mutable records as an additional discovery origin, v0.2)

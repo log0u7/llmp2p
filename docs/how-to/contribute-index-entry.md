@@ -45,7 +45,10 @@ Manifests are served next to it under `manifests/<sha256>.json`.
   rejected by review (the client also keeps the first origin it trusts).
 - Keep the revision pinned: entries are revision-specific by design.
 
-## Why a PR and not the DHT (yet)?
+## Why a PR and not only the DHT?
 
-Publishing straight into the mainline DHT (BEP 44) is on the roadmap
-(ADR-0004); the PR flow is the v0 trust anchor: HTTPS + code review.
+Publishing straight into the mainline DHT (BEP 44) exists since v0.2
+(`pull --dht --allowed-signers <key>`, see ADR-0005), but it requires the
+puller to trust your publisher key up front. A PR into this index is still
+the way to be discoverable by strangers with no prior key exchange: the
+index is the shared trust root (ADR-0004), the DHT record is per-publisher.

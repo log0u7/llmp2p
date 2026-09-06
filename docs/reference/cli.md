@@ -22,6 +22,7 @@ Reference grammar: `hf:owner/repo[@revision][#/path/to/file]`.
 | `--bootstrap <url>` | project index | bootstrap origin(s), repeatable, tried in order |
 | `--grace <duration>` | `90s` | wait for swarm data before HTTP fallback |
 | `--allowed-signers <keys>` | empty | hex ed25519 keys trusted for manifest signatures (comma-separated; set = unsigned manifests rejected) |
+| `--dht` | off | discover the swarm via BEP 44 mutable records (requires `--allowed-signers`: records signed by unknown keys are not addressable) and publish one after the pull |
 | `--listen-port <port>` | random | BitTorrent TCP/UDP listen port |
 | `--token <token>` | `$HF_TOKEN` | Hub access token (gated repos, rate limits) |
 | `--daemon <url>` | `http://127.0.0.1:8347` | delegate to a running daemon |

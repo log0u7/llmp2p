@@ -46,16 +46,37 @@ Signatures bind the manifest bytes to a publisher identity; the identity is
 trusted because it was recorded in the index entry or configured by the
 operator.
 
+## DHT discovery (v0.2)
+
+With `pull --dht --allowed-signers k1,k2`, the swarm entry (infohash +
+manifest sha256 + revision) is resolved from BEP 44 mutable records instead
+of the bootstrap index. The chain does not change:
+
+- The record is a signed pointer (~110 bytes), never model or manifest bytes.
+- Only records signed by an allowlisted key are addressable at all: the
+  record target is derived from the trusted public key and the model id, so
+  a stranger cannot plant a record where you will look.
+- The record pins the manifest sha256; the manifest bytes still come from
+  HTTPS origins and still carry their signature sidecar, verified against
+  the same allowlist.
+- Everything downstream (infohash binding, piece hashes, final per-file
+  sha256) is unchanged.
+
+Trust anchor: your allowlist. The bootstrap origin is demoted from "the only
+discovery path" to "where the bytes come from".
+
 ## What v0 does NOT protect against
 
 - **A fully compromised bootstrap origin** that also serves consistent poisoned
   manifests: the final sha256 check fails against Hub oids only for LFS files,
   and only while the Hub is up and honest. Small non-LFS files are only pinned
   by the manifest.
-- **No signature scheme yet**: manifests are not signed (roadmap: ed25519
-  signatures + signer allowlists).
+- **An allowlisted publisher turning malicious**: signatures prove identity,
+  not intent. A poisoned manifest signed by a trusted key passes every check
+  except the final LFS oid comparison.
 - **The Hub itself**: sha256 oids are taken from Hub metadata over HTTPS.
-- **Privacy**: pulls are visible to the swarm you join and to bootstrap origins.
+- **Privacy**: pulls are visible to the swarm you join and to bootstrap origins;
+  DHT discovery publishes a per-model pointer tied to your publisher key.
 
 ## Practical advice
 

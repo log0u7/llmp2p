@@ -27,8 +27,10 @@ Override with `--dir` (CLI) or `--dir` (daemon). Inside the root:
 store/<owner>/<repo>/           model files, as laid out in the repo
   .llmp2p-manifest.json         manifest pointer pinning the local revision
 manifests/<sha256>.json         content-addressed manifests
+manifests/<sha256>.json.sig     signature sidecars (publishers with a key)
 torrents/<infohash>.torrent     generated torrents
 index.json                      local index (auto-published entries)
+dht-seq.json                    BEP 44 sequence counters (publishers with a key)
 llmp2p.lock                     exclusive engine lock (flock)
 ```
 
@@ -43,3 +45,12 @@ commands fail fast after ~15 s.
 Default: `https://raw.githubusercontent.com/log0u7/llmp2p/main`. Override or
 add with `pull --bootstrap <url>` (repeatable, tried in order, first hit wins).
 Each origin must serve `index.json` and `manifests/<sha256>.json`.
+
+## DHT discovery and publication (v0.2)
+
+`pull --dht --allowed-signers <hex keys>` resolves the swarm entry from BEP 44
+mutable records (see ADR-0005) before consulting the bootstrap origins; the
+manifest bytes keep flowing over HTTPS. Publication happens automatically
+after every whole-repo pull when a publisher key exists (`llmp2p keygen`) and
+`--dht` is set: it is best-effort, failures are logged and never fail the pull.
+Without explicit test addresses, the public mainline routers are used.
