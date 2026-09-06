@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-06
+
+### Added
+
+- Embedded manifests in DHT records: canonical manifest JSON up to the BEP
+  44 cap (700 bytes) travels inside the signed record and is digest-checked
+  on decode, so `--dht` pulls can run without any HTTPS origin.
+- Private swarm mode: `pull --swarm-key <hex|@file>` enables DHT-only
+  discovery under the shared publisher key, ignores bootstrap origins and
+  disables the Hub fallback (a pull that cannot obtain the manifest fails
+  loudly instead of leaking to the Hub).
+- `pull.Options.NoHTTPFallback` for library callers mirroring the private
+  swarm semantics.
+- Audit report: docs/audits/2026-09-06.md (verified findings, fixes, and the
+  observations rejected with reasons).
+
+### Fixed
+
+Security and quality audit of v0.2.0 (docs/audits/2026-09-06.md):
+- Manifest file paths are validated at parse time and before `Create`
+  touches the filesystem: traversal (`..`), absolute, backslash and
+  control-character paths are rejected.
+- The daemon's `/metrics` renderer no longer reads the live pull-counters
+  map while job-completion goroutines mutate it (data race, race-tested).
+- `POST /api/v1/pulls` rejects bodies larger than 64 KiB instead of
+  buffering unbounded input.
+- Delegated pull jobs are bounded by a 2 h timeout: a stalled transfer
+  cannot wedge the sequential queue forever.
+- `llmp2pd` handles SIGTERM (the systemd default) and shuts down gracefully.
+- `llmp2pd` receives the release version via ldflags: `--version` and the
+  status endpoint no longer report 0.0.0.
+
 ## [0.2.0] - 2026-09-06
 
 ### Added
@@ -110,7 +142,8 @@ Initial experimental release.
 - Documentation set (Diataxis layout) and ADRs (MADR).
 - CI: go vet, race tests, golangci-lint, gitleaks; pre-commit gitleaks hook.
 
-[Unreleased]: https://github.com/log0u7/llmp2p/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/log0u7/llmp2p/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/log0u7/llmp2p/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/log0u7/llmp2p/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/log0u7/llmp2p/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/log0u7/llmp2p/compare/v0.0.1...v0.1.0
