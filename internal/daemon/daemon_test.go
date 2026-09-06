@@ -531,3 +531,36 @@ func TestCountModelsBrokenStore(t *testing.T) {
 		t.Fatalf("countModels = %d, want 0 on a removed store", got)
 	}
 }
+
+func TestMetricsConcurrentWithPullResults(t *testing.T) {
+	s := &Server{
+		st:        &store.Store{},
+		engines:   map[string]*engine.Engine{},
+		startedAt: time.Now(),
+		pullStats: map[string]int{},
+	}
+
+	// Record results concurrently with metric renders: the race detector
+	// flags any unsynchronized pullStats access.
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for i := 0; i < 200; i++ {
+			s.recordPullResult("succeeded")
+		}
+	}()
+	for {
+		select {
+		case <-done:
+			rec := httptest.NewRecorder()
+			s.writeMetrics(rec, nil)
+			if !strings.Contains(rec.Body.String(), `llmp2pd_pulls_total{result="succeeded"} 200`) {
+				t.Fatalf("metrics lost updates:\n%s", rec.Body.String())
+			}
+			return
+		default:
+			rec := httptest.NewRecorder()
+			s.writeMetrics(rec, nil)
+		}
+	}
+}

@@ -22,6 +22,7 @@ func (s *Server) writeMetrics(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	models := s.countModels()
+	pullStats := s.pullStatsSnapshot()
 
 	var b strings.Builder
 	writeGauge := func(name, help string, v int64) {
@@ -37,8 +38,8 @@ func (s *Server) writeMetrics(w http.ResponseWriter, r *http.Request) {
 	writeGauge("llmp2pd_seeding_engines", "Running seeder engines (one per owner directory).", int64(len(s.engines)))
 	writeCounter("llmp2pd_uploaded_bytes_total", "Bytes uploaded to peers since daemon start.", uploaded)
 	writeCounter("llmp2pd_downloaded_bytes_total", "Bytes downloaded from peers since daemon start.", downloaded)
-	writeCounter("llmp2pd_pulls_total", "Pull jobs executed by the daemon.", int64(len(s.pullStats)))
-	for result, n := range s.pullStats {
+	writeCounter("llmp2pd_pulls_total", "Pull jobs executed by the daemon.", int64(len(pullStats)))
+	for result, n := range pullStats {
 		fmt.Fprintf(&b, "llmp2pd_pulls_total{result=%q} %d\n", result, n)
 	}
 
@@ -55,4 +56,17 @@ func (s *Server) recordPullResult(result string) {
 		s.pullStats = map[string]int{}
 	}
 	s.pullStats[result]++
+}
+
+// pullStatsSnapshot returns a copy of the pull counters: writeMetrics must
+// never read the live map, which job-completion goroutines mutate under
+// s.mu.
+func (s *Server) pullStatsSnapshot() map[string]int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make(map[string]int, len(s.pullStats))
+	for k, v := range s.pullStats {
+		out[k] = v
+	}
+	return out
 }
