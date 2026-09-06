@@ -63,6 +63,11 @@ of the bootstrap index. The chain does not change:
   the same allowlist. Publishers persist their per-record sequence counters
   in the store (`dht-seq.json`) so a restarted publisher cannot replay a
   stale sequence.
+- Small manifests (<= 700 bytes of canonical JSON) are embedded in the
+  record itself and digest-checked on decode: `pull --swarm-key <key>` runs
+  the whole discovery with no HTTPS origin. The record signature is the
+  authenticator in that mode; a private swarm also disables the Hub
+  fallback, so a pull either stays on the trusted path or fails loudly.
 - Everything downstream (infohash binding, piece hashes, final per-file
   sha256) is unchanged.
 

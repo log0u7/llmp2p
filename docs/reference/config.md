@@ -51,7 +51,15 @@ Each origin must serve `index.json` and `manifests/<sha256>.json`.
 
 `pull --dht --allowed-signers <hex keys>` resolves the swarm entry from BEP 44
 mutable records (see ADR-0005) before consulting the bootstrap origins; the
-manifest bytes keep flowing over HTTPS. Publication happens automatically
-after every whole-repo pull when a publisher key exists (`llmp2p keygen`) and
+manifest bytes keep flowing over HTTPS origins unless the record embeds them
+(small manifests, digest-checked). Publication happens automatically after
+every whole-repo pull when a publisher key exists (`llmp2p keygen`) and
 `--dht` is set: it is best-effort, failures are logged and never fail the pull.
 Without explicit test addresses, the public mainline routers are used.
+
+## Private swarm mode (v0.3)
+
+`pull --swarm-key <hex|@file>` is the packaged workflow: DHT-only discovery
+under the swarm publisher key, bootstrap origins ignored, Hub fallback
+disabled. A pull either runs on the trusted path or fails loudly; the
+publisher key is the only secret to distribute out-of-band.

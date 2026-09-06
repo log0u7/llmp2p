@@ -21,16 +21,18 @@ is intent, not commitment.
 
 - [x] BEP 44 mutable DHT records for manifest discovery (ADR-0005, shipped
       as an additional `pull --dht` origin; the HTTPS bootstrap index stays
-      the default and still serves the manifest bytes). Prototype findings
-      that shaped the implementation: the record expiration must be explicit
-      (a zero Exp expires every record instantly), get replies are parsed
-      from raw bencode (the library response decoder loses dict/string
-      shaped values), and the put query must carry the salt alongside the
-      signature.
-- [ ] Swarm-distributed manifest bytes: remove the HTTPS dependency for the
-      manifest payload itself (the record pins its digest already).
-- [ ] Private swarm mode (shared keys for DHT-only discovery without the
-      bootstrap index).
+      the default). Prototype findings that shaped the implementation: the
+      record expiration must be explicit (a zero Exp expires every record
+      instantly), get replies are parsed from raw bencode (the library
+      response decoder loses dict/string shaped values), and the put query
+      must carry the salt alongside the signature.
+- [x] Swarm-distributed manifest bytes: manifests up to the BEP 44 record
+      cap (700 bytes of canonical JSON) are embedded in the record itself,
+      digest-checked on decode; v0.3 `--swarm-key` builds a fully
+      origin-free private discovery path on top.
+- [x] Private swarm mode (v0.3, `--swarm-key <hex|@file>`): DHT-only
+      discovery under a shared publisher key without the bootstrap index,
+      Hub fallback disabled.
 
 ## v0.2 - ecosystem
 
