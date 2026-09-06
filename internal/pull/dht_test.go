@@ -391,3 +391,47 @@ func TestDHTPointerOnlyRecordFallsBackToHTTP(t *testing.T) {
 		t.Fatalf("mode = %q, want http fallback for a pointer-only record without origins", res.Mode)
 	}
 }
+
+func TestNoHTTPFallbackBlocksFallback(t *testing.T) {
+	var hits atomic.Int64
+	hub := fakeHub(t, &hits)
+	nodeAddr := testDHTNode(t)
+	priv, pubHex := mustPublisherKey(t)
+	dhtSrv := dhtClientNode(t)
+	// Pointer-only record: discovery succeeds but the manifest bytes are
+	// nowhere to be found (no origins configured).
+	pointerOnly := dht.Record{
+		InfoHash:       []byte(strings.Repeat("\xaa", 20)),
+		ManifestSHA256: []byte(strings.Repeat("\xbb", 32)),
+		Revision:       "cafe123",
+		Size:           1,
+	}
+	pub := dht.NewPublisher(priv, filepath.Join(t.TempDir(), "seq.json"))
+	if err := pub.Put(context.Background(), dhtSrv, udpAddrOf(nodeAddr), "org/model", pointerOnly); err != nil {
+		t.Fatal(err)
+	}
+
+	st, err := store.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The Hub resolve works, but the p2p attempt cannot fetch the
+	// manifest: with NoHTTPFallback the run must fail instead of
+	// silently downloading from the Hub.
+	_, err = Run(context.Background(), pullRef(t), Options{
+		Store:          st,
+		HF:             hubAt(hub.URL),
+		HTTPClient:     http.DefaultClient,
+		EngineCfg:      engine.Config{NoDHT: true},
+		DHT:            true,
+		DHTAddrs:       []string{nodeAddr},
+		AllowedSigners: []string{pubHex},
+		NoHTTPFallback: true,
+	})
+	if err == nil || !strings.Contains(err.Error(), "HTTP fallback is disabled") {
+		t.Fatalf("err = %v, want disabled-fallback error", err)
+	}
+	if hits.Load() != 1 {
+		t.Fatalf("hub hits = %d, want 1 (resolve only, no downloads)", hits.Load())
+	}
+}

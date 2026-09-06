@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -27,6 +28,7 @@ type pullFlags struct {
 	daemonURL      string
 	noDaemon       bool
 	dht            bool
+	swarmKey       string
 	allowedSigners []string
 }
 
@@ -59,6 +61,22 @@ func newPullCmd() *cobra.Command {
 			if len(bootstraps) == 0 {
 				bootstraps = []string{DefaultBootstrapURL}
 			}
+			allowedSigners := f.allowedSigners
+			dht := f.dht
+			noHTTPFallback := false
+			if f.swarmKey != "" {
+				// Private swarm mode: DHT-only discovery under the
+				// swarm publisher key, no bootstrap origins, no Hub
+				// fallback.
+				key, err := resolveSwarmKey(f.swarmKey)
+				if err != nil {
+					return err
+				}
+				allowedSigners = []string{key}
+				dht = true
+				bootstraps = nil
+				noHTTPFallback = true
+			}
 
 			if !f.json {
 				fmt.Fprintf(os.Stderr, "pulling %s\n", r)
@@ -81,8 +99,9 @@ func newPullCmd() *cobra.Command {
 				HTTPOnly:       f.httpOnly,
 				P2PGrace:       f.grace,
 				EngineCfg:      engine.Config{ListenPort: f.listenPort},
-				DHT:            f.dht,
-				AllowedSigners: f.allowedSigners,
+				DHT:            dht,
+				AllowedSigners: allowedSigners,
+				NoHTTPFallback: noHTTPFallback,
 				Log:            slog.Default(),
 			}
 			var progressShown bool
@@ -110,7 +129,38 @@ func newPullCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.noDaemon, "no-daemon", false, "never delegate to a running daemon")
 	cmd.Flags().BoolVar(&f.dht, "dht", false, "discover the swarm via BEP 44 mutable DHT records and publish one after the pull")
 	cmd.Flags().StringSliceVar(&f.allowedSigners, "allowed-signers", nil, "trusted hex ed25519 publisher keys (required by --dht, strict when set for signatures)")
+	cmd.Flags().StringVar(&f.swarmKey, "swarm-key", "", "private swarm mode: trusted publisher key as hex or @file; implies --dht, ignores --bootstrap and never falls back to the Hub")
 	return cmd
+}
+
+// resolveSwarmKey normalizes the --swarm-key value: "@path" reads the hex
+// key from a file, anything else is used inline. The value must be a
+// 64-char hex ed25519 public key.
+func resolveSwarmKey(v string) (string, error) {
+	key := v
+	if strings.HasPrefix(v, "@") {
+		b, err := os.ReadFile(strings.TrimPrefix(v, "@"))
+		if err != nil {
+			return "", fmt.Errorf("swarm key file: %w", err)
+		}
+		key = strings.TrimSpace(string(b))
+	}
+	if len(key) != 64 || !isHexKey(key) {
+		return "", fmt.Errorf("swarm key %q is not a 64-char hex ed25519 public key", key)
+	}
+	return key, nil
+}
+
+func isHexKey(s string) bool {
+	for _, c := range s {
+		digit := c >= '0' && c <= '9'
+		lower := c >= 'a' && c <= 'f'
+		upper := c >= 'A' && c <= 'F'
+		if !digit && !lower && !upper {
+			return false
+		}
+	}
+	return true
 }
 
 // printPullSummary renders the final pull result, human or JSON.

@@ -74,6 +74,11 @@ type Options struct {
 	// DHTAddrs are udp node addresses for DHT discovery/publication
 	// (tests and private swarms). Empty uses the public routers.
 	DHTAddrs []string
+	// NoHTTPFallback disables the Hub download fallback: when the P2P
+	// attempt fails, Run returns an error instead of pulling over HTTP.
+	// Private swarms set this to keep discovery and distribution inside
+	// the trusted path.
+	NoHTTPFallback bool
 	// Log receives structured progress lines; nil disables logging.
 	Log *slog.Logger
 }
@@ -150,6 +155,9 @@ func Run(ctx context.Context, r *ref.Ref, opts Options) (Result, error) {
 	if !opts.HTTPOnly && r.Path == "" {
 		res2, err := pullP2P(ctx, r, opts, res.Revision, files, modelDir, grace)
 		if err != nil {
+			if opts.NoHTTPFallback {
+				return Result{}, fmt.Errorf("pull: p2p failed and HTTP fallback is disabled: %w", err)
+			}
 			logf(opts.Log, "p2p pull failed, falling back to http", "err", err)
 		} else {
 			return res2, nil

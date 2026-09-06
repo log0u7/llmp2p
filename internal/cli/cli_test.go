@@ -517,3 +517,34 @@ func TestHumanBytesAndShortRev(t *testing.T) {
 		t.Errorf("shortRev(short) = %q", got)
 	}
 }
+
+func TestSwarmKeyValidation(t *testing.T) {
+	// Inline hex accepted (validation only: the pull errors later at
+	// discovery, not at flag parsing).
+	dir := t.TempDir()
+	if _, _, err := runRoot(t, "", "pull", "hf:org/model", "--dir", dir,
+		"--swarm-key", strings.Repeat("a", 64)); err == nil {
+		// A valid key with no DHT record available must still fail
+		// (private swarm forbids the Hub fallback).
+		t.Fatal("private swarm pull without any record must fail")
+	}
+	// Bad hex rejected up front.
+	if _, _, err := runRoot(t, "", "pull", "hf:org/model", "--dir", t.TempDir(),
+		"--swarm-key", "nothex"); err == nil || !strings.Contains(err.Error(), "64-char hex") {
+		t.Fatalf("err = %v, want key validation error", err)
+	}
+	// Missing key file rejected up front.
+	if _, _, err := runRoot(t, "", "pull", "hf:org/model", "--dir", t.TempDir(),
+		"--swarm-key", "@/nonexistent/key.hex"); err == nil || !strings.Contains(err.Error(), "swarm key file") {
+		t.Fatalf("err = %v, want file error", err)
+	}
+	// Key from file resolves.
+	keyFile := filepath.Join(t.TempDir(), "swarm.pub")
+	if err := os.WriteFile(keyFile, []byte(strings.Repeat("b", 64)+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := runRoot(t, "", "pull", "hf:org/model", "--dir", t.TempDir(),
+		"--swarm-key", "@"+keyFile); err == nil {
+		t.Fatal("valid key without a record must still fail (no Hub fallback)")
+	}
+}
