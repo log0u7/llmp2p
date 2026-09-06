@@ -4,3 +4,4 @@ coverage.out
 *.test
 *.prof
 .mise.local.toml
+.opencode/
