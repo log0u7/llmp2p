@@ -593,3 +593,80 @@ func TestMetricsConcurrentWithPullResults(t *testing.T) {
 		}
 	}
 }
+
+func TestPullJobTimesOut(t *testing.T) {
+	old := pullJobTimeout
+	pullJobTimeout = 150 * time.Millisecond
+	t.Cleanup(func() { pullJobTimeout = old })
+
+	// A Hub that hangs: the job must fail on the timeout, not hang the
+	// sequential queue forever.
+	hang := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-r.Context().Done():
+		case <-time.After(30 * time.Second):
+		}
+	}))
+	t.Cleanup(hang.Close)
+
+	st, err := store.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	port := freePort(t)
+	addr := fmt.Sprintf("127.0.0.1:%d", port)
+	ctx, cancel := context.WithCancel(context.Background())
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- Run(ctx, Options{Store: st, ListenAddr: addr,
+			PullTemplate: &pull.Options{HF: fakePullHubClient(hang.URL),
+				HTTPClient: http.DefaultClient,
+				EngineCfg:  engine.Config{NoDHT: true}},
+		})
+	}()
+	defer func() {
+		cancel()
+		<-errCh
+	}()
+	if _, err := waitUp(t, addr, "/api/v1/status"); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := http.Post(fmt.Sprintf("http://%s/api/v1/pulls", addr), "application/json",
+		strings.NewReader(`{"ref":"hf:org/model","httpOnly":true}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var job struct {
+		ID string `json:"id"`
+	}
+	_ = json.NewDecoder(res.Body).Decode(&job)
+	_ = res.Body.Close()
+
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		res, err := http.Get(fmt.Sprintf("http://%s/api/v1/pulls/%s", addr, job.ID))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var final struct {
+			Status string `json:"status"`
+			Error  string `json:"error"`
+		}
+		_ = json.NewDecoder(res.Body).Decode(&final)
+		_ = res.Body.Close()
+		if final.Status == "failed" {
+			if !strings.Contains(final.Error, "deadline") && !strings.Contains(final.Error, "canceled") {
+				t.Fatalf("job error = %q, want context deadline", final.Error)
+			}
+			return
+		}
+		if final.Status == "succeeded" {
+			t.Fatal("hung pull must not succeed")
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("job did not time out, status=%q", final.Status)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}

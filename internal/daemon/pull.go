@@ -77,6 +77,10 @@ func (q *pullQueue) enqueue(ctx context.Context, r *ref.Ref, httpOnly bool) (pul
 	return snapshot, nil
 }
 
+// pullJobTimeout bounds a delegated pull: a stalled transfer must not
+// hold the sequential queue forever. Overridable in tests.
+var pullJobTimeout = 2 * time.Hour
+
 func (q *pullQueue) run(ctx context.Context, job *pullJob, r *ref.Ref, httpOnly bool) {
 	q.sem <- struct{}{}
 	defer func() { <-q.sem }()
@@ -88,11 +92,14 @@ func (q *pullQueue) run(ctx context.Context, job *pullJob, r *ref.Ref, httpOnly 
 	q.mu.Unlock()
 
 	// The HTTP request ends with the 202 response; the job must keep
-	// running regardless of the client disconnecting.
+	// running regardless of the client disconnecting, but never outlive
+	// the job timeout: a stalled transfer would block the queue.
+	runCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), pullJobTimeout)
+	defer cancel()
 	opts := template
 	opts.HTTPOnly = httpOnly
 	opts.NoLock = true
-	res, err := pull.Run(context.WithoutCancel(ctx), r, opts)
+	res, err := pull.Run(runCtx, r, opts)
 
 	q.mu.Lock()
 	defer q.mu.Unlock()
