@@ -29,6 +29,9 @@ func Create(model, revision string, entries []File, root string) (*Manifest, err
 		Files:       make([]File, 0, len(entries)),
 	}
 	for _, e := range entries {
+		if err := validateManifestPath(e.Path); err != nil {
+			return nil, fmt.Errorf("entry %s: %w", e.Path, err)
+		}
 		p := filepath.Join(root, filepath.FromSlash(e.Path))
 		info, err := os.Stat(p)
 		if err != nil {

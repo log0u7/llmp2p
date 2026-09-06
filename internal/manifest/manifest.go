@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"time"
 )
 
@@ -61,6 +62,42 @@ func (m *Manifest) Validate() error {
 	return nil
 }
 
+// maxManifestPath bounds the length of one file path.
+const maxManifestPath = 512
+
+// validateManifestPath rejects anything that is not a plain relative slash
+// path: traversal (..), absolute paths, backslashes, empty segments,
+// control characters, and Windows drive letters. Manifest paths end up in
+// filesystem operations (VerifyDir, downloads) and torrent layouts, so a
+// served manifest must never move them outside the model directory.
+func validateManifestPath(path string) error {
+	if len(path) > maxManifestPath {
+		return fmt.Errorf("path longer than %d bytes", maxManifestPath)
+	}
+	if strings.HasPrefix(path, "/") {
+		return fmt.Errorf("absolute path")
+	}
+	if strings.ContainsRune(path, '\\') {
+		return fmt.Errorf("backslash in path")
+	}
+	if len(path) >= 2 && path[1] == ':' && isDriveLetter(path[0]) {
+		return fmt.Errorf("windows drive letter")
+	}
+	for _, r := range path {
+		if r < 0x20 || r == 0x7f {
+			return fmt.Errorf("control character %q", r)
+		}
+	}
+	for _, seg := range strings.Split(path, "/") {
+		if seg == "" || seg == "." || seg == ".." {
+			return fmt.Errorf("invalid segment %q", seg)
+		}
+	}
+	return nil
+}
+
+func isDriveLetter(c byte) bool { return c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z' }
+
 // validateContent checks everything except the infohash, which is only
 // known after metainfo generation.
 func (m *Manifest) validateContent() error {
@@ -79,6 +116,9 @@ func (m *Manifest) validateContent() error {
 	for i, f := range m.Files {
 		if f.Path == "" {
 			return fmt.Errorf("file %d: empty path", i)
+		}
+		if err := validateManifestPath(f.Path); err != nil {
+			return fmt.Errorf("file %d: %s: %w", i, f.Path, err)
 		}
 		if f.Size < 0 {
 			return fmt.Errorf("file %q: negative size", f.Path)

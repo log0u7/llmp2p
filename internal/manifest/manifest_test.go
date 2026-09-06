@@ -1,8 +1,10 @@
 package manifest
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -219,5 +221,53 @@ func TestSHA256Manifest(t *testing.T) {
 	}
 	if s1 != s2 {
 		t.Fatalf("manifest sha unstable: %s vs %s", s1, s2)
+	}
+}
+
+func TestValidateManifestPath(t *testing.T) {
+	for _, path := range []string{
+		"../escape",
+		"a/../../escape",
+		"/absolute",
+		"a//b",
+		"a/./b",
+		`a\b`,
+		"C:/x",
+		"c:payload",
+		"a\x01b",
+		"a\x7fb",
+		strings.Repeat("a", 600),
+	} {
+		if err := validateManifestPath(path); err == nil {
+			t.Errorf("validateManifestPath(%q) accepted", path)
+		}
+	}
+	for _, path := range []string{"a/b/model.gguf", "a b/c-d_e.f", "中文/dir/x.bin"} {
+		if err := validateManifestPath(path); err != nil {
+			t.Errorf("validateManifestPath(%q): %v", path, err)
+		}
+	}
+}
+
+func TestParseRejectsTraversalPaths(t *testing.T) {
+	bad := []string{"../escape", "/abs", `a\b`, "a//b"}
+	for _, path := range bad {
+		// Files must stay sorted; build a single-file manifest per case.
+		raw := fmt.Sprintf(`{"schema":%q,"model":"org/model","revision":"r1",
+			"createdAt":"2026-01-01T00:00:00Z","pieceLength":4194304,
+			"infoHash":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			"files":[{"path":%q,"size":1,"sha256":"%s"}]}`,
+			Schema, path, strings.Repeat("a", 64))
+		if _, err := Parse([]byte(raw)); err == nil {
+			t.Errorf("Parse accepted manifest with path %q", path)
+		}
+	}
+}
+
+func TestCreateRejectsTraversalEntries(t *testing.T) {
+	root := t.TempDir()
+	_, err := Create("org/model", "r1", []File{{Path: "../escape", Size: 1}}, root)
+	if err == nil {
+		t.Fatal("Create accepted a traversal entry")
 	}
 }
