@@ -126,6 +126,9 @@ func (c *Client) DownloadFile(ctx context.Context, repoID, revision, path, dst, 
 				return 0, err
 			}
 			hasher.Reset()
+			// The body is rewritten from scratch: the offset no longer
+			// contributes to the reported byte count.
+			offset = 0
 		}
 	default:
 		_ = f.Close()
