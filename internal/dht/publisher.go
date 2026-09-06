@@ -94,6 +94,9 @@ func NewPublisher(priv ed25519.PrivateKey, statePath string) *Publisher {
 // travels with the signature (a put without its salt produces an invalid
 // signature and the wrong target).
 func (p *Publisher) Put(ctx context.Context, srv *anadht.Server, node anadht.Addr, modelID string, rec Record) error {
+	if len(rec.Manifest) > MaxEmbeddedManifest {
+		return fmt.Errorf("dht: embedded manifest is %d bytes, cap is %d", len(rec.Manifest), MaxEmbeddedManifest)
+	}
 	salt := SaltFor(modelID)
 	seq, err := p.seqs.next(salt)
 	if err != nil {

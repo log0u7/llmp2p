@@ -5,6 +5,7 @@
 package dht
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"errors"
 	"fmt"
@@ -12,9 +13,17 @@ import (
 	bencode "github.com/anacrolix/torrent/bencode"
 )
 
+// MaxEmbeddedManifest caps the canonical manifest JSON embedded in a
+// record: the total signed value must stay under the BEP 44 limit (1000
+// bytes) and the pointer part plus salt overhead consume the rest. A
+// manifest larger than the cap is pointer-only: its bytes keep coming
+// from HTTPS origins.
+const MaxEmbeddedManifest = 700
+
 // Record is the mutable DHT payload: a signed pointer to one model's
 // distribution artifacts. Keep it small: BEP 44 limits the bencoded value
-// to 1000 bytes and the salt to 64 bytes; this record marshals to ~110.
+// to 1000 bytes and the salt to 64 bytes; the pointer-only form marshals
+// to ~110 bytes.
 type Record struct {
 	// InfoHash is the v1 torrent infohash (20 raw bytes).
 	InfoHash []byte `bencode:"i"`
@@ -26,6 +35,10 @@ type Record struct {
 	Revision string `bencode:"r"`
 	// Size is the total artifact size in bytes.
 	Size int64 `bencode:"s"`
+	// Manifest optionally carries the canonical manifest JSON itself
+	// (digest-checked on decode), so a client can proceed without HTTPS
+	// origins. Empty: pointer-only record.
+	Manifest []byte `bencode:"j,omitempty"`
 }
 
 // SaltFor derives the BEP 44 salt for a model id: 32 bytes of sha256,
@@ -54,6 +67,7 @@ func DecodeRecord(v []byte) (*Record, error) {
 		ManifestSHA256 []byte `bencode:"m"`
 		Revision       string `bencode:"r"`
 		Size           int64  `bencode:"s"`
+		Manifest       []byte `bencode:"j"`
 	}
 	if err := bencode.Unmarshal(v, &raw); err != nil {
 		return nil, fmt.Errorf("dht: record decode: %w", err)
@@ -67,10 +81,21 @@ func DecodeRecord(v []byte) (*Record, error) {
 	if raw.Revision == "" {
 		return nil, errors.New("dht: record without revision")
 	}
-	return &Record{
+	if len(raw.Manifest) > MaxEmbeddedManifest {
+		return nil, fmt.Errorf("dht: embedded manifest is %d bytes, cap is %d", len(raw.Manifest), MaxEmbeddedManifest)
+	}
+	rec := &Record{
 		InfoHash:       raw.InfoHash,
 		ManifestSHA256: raw.ManifestSHA256,
 		Revision:       raw.Revision,
 		Size:           raw.Size,
-	}, nil
+		Manifest:       raw.Manifest,
+	}
+	if len(rec.Manifest) > 0 {
+		sum := sha256.Sum256(rec.Manifest)
+		if !bytes.Equal(sum[:], rec.ManifestSHA256) {
+			return nil, errors.New("dht: embedded manifest does not match the pinned digest")
+		}
+	}
+	return rec, nil
 }

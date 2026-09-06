@@ -3,6 +3,8 @@ package dht
 import (
 	"context"
 	"crypto/ed25519"
+	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -278,5 +280,103 @@ func TestNewClientValidatesKeys(t *testing.T) {
 	}
 	if _, err := NewClient([]string{pubHex}); err != nil {
 		t.Fatalf("rejected a valid key: %v", err)
+	}
+}
+
+// manifestJSON returns a realistic canonical manifest payload (small
+// enough to embed).
+func manifestJSON(t *testing.T, model string) []byte {
+	t.Helper()
+	b, err := json.Marshal(map[string]any{
+		"schema": "llmp2p/v1", "model": model, "revision": "cafe123",
+		"files": []map[string]any{{"path": "model.gguf", "size": 5,
+			"sha256": strings.Repeat("a", 64)}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b
+}
+
+func recordWithManifest(t *testing.T, model string) Record {
+	t.Helper()
+	mj := manifestJSON(t, model)
+	sum := sha256.Sum256(mj)
+	return Record{
+		InfoHash:       mustBytes(t, strings.Repeat("\xaa", 20)),
+		ManifestSHA256: sum[:],
+		Revision:       "cafe123",
+		Size:           5,
+		Manifest:       mj,
+	}
+}
+
+func TestRecordEmbedsManifest(t *testing.T) {
+	rec := recordWithManifest(t, "org/model")
+	b, err := rec.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(b) > 1000 {
+		t.Fatalf("embedded record marshals to %d bytes, over the BEP 44 limit", len(b))
+	}
+	// The wire shape must carry the manifest field when present...
+	if !strings.Contains(string(b), "1:j") {
+		t.Fatalf("wire shape missing j field: %q", b)
+	}
+	got, err := DecodeRecord(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got.Manifest) != string(rec.Manifest) {
+		t.Fatalf("embedded manifest = %q, want %q", got.Manifest, rec.Manifest)
+	}
+
+	// ...and omit it entirely for pointer-only records.
+	ptrOnly := testRecord(t)
+	ptrOnly.Manifest = nil
+	ptrBytes, err := ptrOnly.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(ptrBytes), "1:j") {
+		t.Fatalf("pointer-only record must not carry a j field: %q", ptrBytes)
+	}
+}
+
+func TestRecordRejectsDigestMismatch(t *testing.T) {
+	rec := recordWithManifest(t, "org/model")
+	other := manifestJSON(t, "org/other")
+	rec.Manifest = other
+	b, err := rec.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := DecodeRecord(b); err == nil {
+		t.Fatal("DecodeRecord accepted an embedded manifest with a foreign digest")
+	}
+}
+
+func TestRecordRejectsOversizedManifest(t *testing.T) {
+	rec := testRecord(t)
+	rec.Manifest = make([]byte, MaxEmbeddedManifest+1)
+	if _, err := rec.Encode(); err != nil {
+		t.Fatal(err)
+	}
+	b, _ := rec.Encode()
+	if _, err := DecodeRecord(b); err == nil {
+		t.Fatal("DecodeRecord accepted an oversized embedded manifest")
+	}
+}
+
+func TestPublisherRejectsOversizedManifest(t *testing.T) {
+	priv, _ := testKey(t)
+	p := NewPublisher(priv, filepathSeqState(t))
+	rec := testRecord(t)
+	rec.Manifest = make([]byte, MaxEmbeddedManifest+1)
+	node := newTestNode(t)
+	err := p.Put(context.Background(), node, nodeAddr(node), "org/model", rec)
+	if err == nil || !strings.Contains(err.Error(), "cap") {
+		t.Fatalf("err = %v, want cap enforcement before any network I/O", err)
 	}
 }
