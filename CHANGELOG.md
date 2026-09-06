@@ -5,6 +5,23 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.2.0] - 2026-09-06
+
+### Added
+
+- BEP 44 mutable DHT records for swarm discovery (`pull --dht
+  --allowed-signers <keys>`, ADR-0005): the manifest pointer (infohash,
+  manifest sha256, revision, size) is a signed record addressed by the
+  publisher's ed25519 key, so discovery no longer requires the bootstrap
+  index. Manifest bytes keep flowing over HTTPS origins and keep their
+  sidecar verification; publication after a pull is best-effort and needs
+  `llmp2p keygen`.
+- `pull --allowed-signers`: the previously documented but missing flag is
+  now real; it drives both manifest sidecar verification and DHT record
+  addressing.
+
 ## [0.1.1] - 2026-09-06
 
 ### Changed
@@ -93,7 +110,8 @@ Initial experimental release.
 - Documentation set (Diataxis layout) and ADRs (MADR).
 - CI: go vet, race tests, golangci-lint, gitleaks; pre-commit gitleaks hook.
 
-[Unreleased]: https://github.com/log0u7/llmp2p/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/log0u7/llmp2p/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/log0u7/llmp2p/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/log0u7/llmp2p/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/log0u7/llmp2p/compare/v0.0.1...v0.1.0
 [0.0.1]: https://github.com/log0u7/llmp2p/compare/v0.0.0...v0.0.1
