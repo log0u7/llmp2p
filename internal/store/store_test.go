@@ -207,3 +207,214 @@ func TestRemoveDeletesEverything(t *testing.T) {
 		t.Fatalf("second remove err = %v, want ErrModelNotFound", err)
 	}
 }
+
+func TestRemoveInvalidModelID(t *testing.T) {
+	s, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Remove("not-an-id"); err == nil {
+		t.Fatal("Remove accepted an invalid model id")
+	}
+}
+
+func TestRemoveWithoutManifestKeepsModelFilesOnly(t *testing.T) {
+	s, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir, err := s.ModelDir("org/model")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	sum, err := s.Remove("org/model")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !sum.DirRemoved {
+		t.Fatalf("dir must be removed: %+v", sum)
+	}
+	if sum.TorrentRemoved || sum.ManifestRemoved || sum.IndexEntryRemoved || sum.Files != 0 {
+		t.Fatalf("nothing else to remove: %+v", sum)
+	}
+}
+
+func TestRemoveWithBrokenManifestStillRemovesDir(t *testing.T) {
+	s, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir, err := s.ModelDir("org/model")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mfile, err := s.ModelManifestFile("org/model")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(mfile, []byte("{broken"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	sum, err := s.Remove("org/model")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !sum.DirRemoved {
+		t.Fatalf("dir must be removed: %+v", sum)
+	}
+	if sum.TorrentRemoved || sum.ManifestRemoved {
+		t.Fatalf("unparseable manifest must not claim removals: %+v", sum)
+	}
+}
+
+func TestRemoveWithoutIndexFile(t *testing.T) {
+	s, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	const ih = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	fakeStoredModel(t, s, "org/model", ih)
+	if err := os.Remove(s.LocalIndexPath()); err != nil {
+		t.Fatal(err)
+	}
+
+	sum, err := s.Remove("org/model")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sum.IndexEntryRemoved {
+		t.Fatal("no index file: entry removal must not be claimed")
+	}
+}
+
+func TestSignaturePath(t *testing.T) {
+	s, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	sha := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	sp, err := s.SignaturePath(sha)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filepath.Base(sp) != sha+".sig" {
+		t.Fatalf("SignaturePath = %q", sp)
+	}
+	if _, err := s.SignaturePath("nothex"); err == nil {
+		t.Fatal("SignaturePath accepted a non-hex hash")
+	}
+}
+
+func TestModelManifestFileValidation(t *testing.T) {
+	s, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.ModelManifestFile("nope"); err == nil {
+		t.Fatal("ModelManifestFile accepted an invalid model id")
+	}
+}
+
+func TestManifestsListing(t *testing.T) {
+	s, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := s.Manifests(); err != nil || got != nil {
+		t.Fatalf("empty store Manifests = %v, %v; want nil, nil", got, err)
+	}
+	const sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	if err := os.WriteFile(filepath.Join(s.manifestsDir(), sha+".json"), []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(s.manifestsDir(), sha+".sig"), []byte("sig"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(s.manifestsDir(), "notes.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.Manifests()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0] != sha {
+		t.Fatalf("Manifests = %v, want [%s]", got, sha)
+	}
+}
+
+func TestManifestsReadError(t *testing.T) {
+	// No Open(): the manifests dir does not exist.
+	s := &Store{root: filepath.Join(t.TempDir(), "gone")}
+	if _, err := s.Manifests(); err == nil {
+		t.Fatal("Manifests must fail on a missing directory")
+	}
+}
+
+func TestModelsListing(t *testing.T) {
+	s, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := s.Models(); err != nil || got != nil {
+		t.Fatalf("empty store Models = %v, %v; want nil, nil", got, err)
+	}
+	ownerDir := filepath.Join(s.storeDir(), "org")
+	for _, repo := range []string{"model-a", "model-b"} {
+		if err := os.MkdirAll(filepath.Join(ownerDir, repo), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Stray files at both levels must be skipped.
+	if err := os.WriteFile(filepath.Join(s.storeDir(), "stray-file"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(ownerDir, "not-a-repo"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.Models()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"org/model-a", "org/model-b"}
+	if len(got) != len(want) {
+		t.Fatalf("Models = %v, want %v", got, want)
+	}
+	for i, id := range want {
+		if got[i] != id {
+			t.Errorf("Models[%d] = %q, want %q", i, got[i], id)
+		}
+	}
+}
+
+func TestOpenFailsUnderFile(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "file")
+	if err := os.WriteFile(root, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Open(root); err == nil {
+		t.Fatal("Open must fail when the root is a regular file")
+	}
+}
+
+func TestLockFailsOnUnwritableRoot(t *testing.T) {
+	root := t.TempDir()
+	s, err := Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(root, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(root, 0o755) })
+	if _, err := s.Lock(50 * time.Millisecond); err == nil {
+		t.Fatal("Lock must fail on an unwritable root")
+	}
+}
