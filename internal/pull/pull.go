@@ -35,6 +35,9 @@ const (
 // tolerated before falling back to HTTP.
 const DefaultP2PGrace = 90 * time.Second
 
+// dhtPublishTimeout bounds one publish attempt against a single node.
+const dhtPublishTimeout = 15 * time.Second
+
 // Options configures Run.
 type Options struct {
 	Store *store.Store
@@ -62,6 +65,15 @@ type Options struct {
 	// signatures. Empty: signatures are verified but unknown signers only
 	// warn.
 	AllowedSigners []string
+	// DHT enables BEP 44 mutable records: discovery resolves the swarm
+	// entry from records signed by an allowlisted publisher, and
+	// publication writes one after a successful pull. Without an
+	// allowlist, DHT discovery cannot derive a target and only the
+	// bootstrap index is consulted.
+	DHT bool
+	// DHTAddrs are udp node addresses for DHT discovery/publication
+	// (tests and private swarms). Empty uses the public routers.
+	DHTAddrs []string
 	// Log receives structured progress lines; nil disables logging.
 	Log *slog.Logger
 }
@@ -184,13 +196,29 @@ func checkCache(s *store.Store, modelID, revision, modelDir string) (*manifest.M
 // (without side effects on the store) when there is no entry, when the
 // manifest cannot be fetched, or when no data arrives within grace.
 func pullP2P(ctx context.Context, r *ref.Ref, opts Options, revision string, files []hf.FileInfo, modelDir string, grace time.Duration) (Result, error) {
-	fetchRes, err := index.Fetch(opts.HTTPClient, opts.BootstrapURLs)
-	if err != nil {
-		return Result{}, err
+	// DHT discovery first (BEP 44 mutable records): the record pins the
+	// manifest digest the same way the bootstrap index would. Without an
+	// allowlist there is no trusted target, so the index is consulted.
+	entry := index.Entry{}
+	entryOK := false
+	if opts.DHT && len(opts.AllowedSigners) > 0 {
+		e, err := discoverViaDHT(ctx, opts, r.ID(), revision)
+		if err != nil {
+			logf(opts.Log, "dht discovery failed", "err", err)
+		} else {
+			entry, entryOK = e, true
+		}
 	}
-	entry, ok := fetchRes.Index.Get(r.ID())
-	if !ok {
-		return Result{}, fmt.Errorf("pull: no bootstrap index entry for %s", r.ID())
+	if !entryOK {
+		fetchRes, err := index.Fetch(opts.HTTPClient, opts.BootstrapURLs)
+		if err != nil {
+			return Result{}, err
+		}
+		var ok bool
+		entry, ok = fetchRes.Index.Get(r.ID())
+		if !ok {
+			return Result{}, fmt.Errorf("pull: no bootstrap index entry for %s", r.ID())
+		}
 	}
 	if entry.Revision != revision {
 		return Result{}, fmt.Errorf("pull: swarm pinned to revision %s, want %s", entry.Revision, revision)
@@ -397,6 +425,11 @@ func publish(opts Options, r *ref.Ref, revision string, files []hf.FileInfo, mod
 		if err := publishLocalIndex(opts, r.ID(), m, msha, total); err != nil {
 			logf(opts.Log, "local index publish failed", "err", err)
 		}
+	}
+
+	// DHT publication (whole-repo pulls only), best-effort.
+	if opts.DHT && r.Path == "" {
+		publishToDHT(opts, r.ID(), m.InfoHash, msha, revision, total)
 	}
 
 	return Result{

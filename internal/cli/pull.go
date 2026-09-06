@@ -18,14 +18,16 @@ import (
 )
 
 type pullFlags struct {
-	httpOnly   bool
-	bootstrap  []string
-	listenPort int
-	grace      time.Duration
-	token      string
-	json       bool
-	daemonURL  string
-	noDaemon   bool
+	httpOnly       bool
+	bootstrap      []string
+	listenPort     int
+	grace          time.Duration
+	token          string
+	json           bool
+	daemonURL      string
+	noDaemon       bool
+	dht            bool
+	allowedSigners []string
 }
 
 func newPullCmd() *cobra.Command {
@@ -73,13 +75,15 @@ func newPullCmd() *cobra.Command {
 				return nil
 			}
 			opts := pull.Options{
-				Store:         st,
-				HF:            hfc,
-				BootstrapURLs: bootstraps,
-				HTTPOnly:      f.httpOnly,
-				P2PGrace:      f.grace,
-				EngineCfg:     engine.Config{ListenPort: f.listenPort},
-				Log:           slog.Default(),
+				Store:          st,
+				HF:             hfc,
+				BootstrapURLs:  bootstraps,
+				HTTPOnly:       f.httpOnly,
+				P2PGrace:       f.grace,
+				EngineCfg:      engine.Config{ListenPort: f.listenPort},
+				DHT:            f.dht,
+				AllowedSigners: f.allowedSigners,
+				Log:            slog.Default(),
 			}
 			var progressShown bool
 			if !f.json {
@@ -104,6 +108,8 @@ func newPullCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.json, "json", false, "print machine-readable result")
 	cmd.Flags().StringVar(&f.daemonURL, "daemon", DefaultDaemonURL, "daemon URL to delegate pulls to when running")
 	cmd.Flags().BoolVar(&f.noDaemon, "no-daemon", false, "never delegate to a running daemon")
+	cmd.Flags().BoolVar(&f.dht, "dht", false, "discover the swarm via BEP 44 mutable DHT records and publish one after the pull")
+	cmd.Flags().StringSliceVar(&f.allowedSigners, "allowed-signers", nil, "trusted hex ed25519 publisher keys (required by --dht, strict when set for signatures)")
 	return cmd
 }
 
