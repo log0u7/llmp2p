@@ -30,6 +30,7 @@ type pullFlags struct {
 	dht            bool
 	swarmKey       string
 	allowedSigners []string
+	peers          []string
 }
 
 func newPullCmd() *cobra.Command {
@@ -99,6 +100,7 @@ func newPullCmd() *cobra.Command {
 				HTTPOnly:       f.httpOnly,
 				P2PGrace:       f.grace,
 				EngineCfg:      engine.Config{ListenPort: f.listenPort},
+				EngineAddrs:    f.peers,
 				DHT:            dht,
 				AllowedSigners: allowedSigners,
 				NoHTTPFallback: noHTTPFallback,
@@ -130,6 +132,7 @@ func newPullCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.dht, "dht", false, "discover the swarm via BEP 44 mutable DHT records and publish one after the pull")
 	cmd.Flags().StringSliceVar(&f.allowedSigners, "allowed-signers", nil, "trusted hex ed25519 publisher keys (required by --dht, strict when set for signatures)")
 	cmd.Flags().StringVar(&f.swarmKey, "swarm-key", "", "private swarm mode: trusted publisher key as hex or @file; implies --dht, ignores --bootstrap and never falls back to the Hub")
+	cmd.Flags().StringSliceVar(&f.peers, "peer", nil, "static swarm peer addresses host:port (repeatable; guarantees a peer connection without DHT peer discovery)")
 	return cmd
 }
 

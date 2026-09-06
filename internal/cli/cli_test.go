@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -13,6 +14,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/log0u7/llmp2p/internal/engine"
 	"github.com/log0u7/llmp2p/internal/manifest"
@@ -546,5 +548,89 @@ func TestSwarmKeyValidation(t *testing.T) {
 	if _, _, err := runRoot(t, "", "pull", "hf:org/model", "--dir", t.TempDir(),
 		"--swarm-key", "@"+keyFile); err == nil {
 		t.Fatal("valid key without a record must still fail (no Hub fallback)")
+	}
+}
+
+// TestPullWithPeerJoinsLocalSwarm runs the deterministic two-machine demo
+// path end to end: store A pulls over HTTP, an engine seeds it on a fixed
+// port, a static origin serves the index, and store B pulls with --peer
+// and must land in p2p mode.
+func TestPullWithPeerJoinsLocalSwarm(t *testing.T) {
+	gguf := "GGUF-SWARM-PAYLOAD"
+	cfg := `{"model_type":"demo"}`
+	hubMux := http.NewServeMux()
+	hubMux.HandleFunc("/api/models/org/demo/revision/main", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = fmt.Fprint(w, `{"sha":"cafe123"}`)
+	})
+	hubMux.HandleFunc("/api/models/org/demo/tree/cafe123", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = fmt.Fprintf(w, `[{"type":"file","path":"config.json","size":%d},
+			{"type":"file","path":"model.gguf","size":%d,"lfs":{"oid":"%s"}}]`,
+			len(cfg), len(gguf), sha256HexStr(gguf))
+	})
+	hubMux.HandleFunc("/org/demo/resolve/cafe123/", func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "config.json") {
+			_, _ = w.Write([]byte(cfg))
+			return
+		}
+		_, _ = w.Write([]byte(gguf))
+	})
+	hub := httptest.NewServer(hubMux)
+	t.Cleanup(hub.Close)
+
+	dirA := t.TempDir()
+	t.Setenv("HF_ENDPOINT", hub.URL)
+	if _, _, err := runRoot(t, "", "pull", "hf:org/demo", "--dir", dirA,
+		"--no-daemon", "--http-only"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Seed store A on a fixed port.
+	stA, err := store.Open(dirA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mfile, err := stA.ModelManifestFile("org/demo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, err := manifest.Load(mfile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tpath, err := stA.TorrentPath(m.InfoHash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seeder, err := engine.New(engine.Config{DataDir: filepath.Join(dirA, "store", "org"),
+		NoDHT: true, Seed: true, DisableUTP: true, ListenPort: 0}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = seeder.Close() })
+	seedCtx, seedCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer seedCancel()
+	if err := seeder.SeedTorrentFile(seedCtx, tpath); err != nil {
+		t.Fatal(err)
+	}
+	seederAddr := fmt.Sprintf("127.0.0.1:%d", seeder.ListenPort())
+
+	// Static origin over store A.
+	origin := httptest.NewServer(http.FileServer(http.Dir(dirA)))
+	t.Cleanup(origin.Close)
+
+	// Machine B: pull with --peer.
+	dirB := t.TempDir()
+	out, _, err := runRoot(t, "", "pull", "hf:org/demo", "--dir", dirB,
+		"--no-daemon", "--bootstrap", origin.URL, "--grace", "60s",
+		"--peer", seederAddr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "via p2p") {
+		t.Fatalf("pull output = %q, want p2p mode", out)
+	}
+	got, err := os.ReadFile(filepath.Join(dirB, "store", "org", "demo", "model.gguf"))
+	if err != nil || string(got) != gguf {
+		t.Fatalf("b file mismatch: err=%v", err)
 	}
 }
