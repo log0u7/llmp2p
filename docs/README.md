@@ -11,8 +11,10 @@ you are trying to do.
 | use a pulled model in Ollama | [how-to/import-into-ollama.md](how-to/import-into-ollama.md) |
 | run the background seeder and check its status | [how-to/run-daemon.md](how-to/run-daemon.md) |
 | make a model discoverable to everyone | [how-to/contribute-index-entry.md](how-to/contribute-index-entry.md) |
+| run a private swarm without the bootstrap index | [how-to/private-swarm.md](how-to/private-swarm.md) |
 | look up a command, flag, or API route | [reference/](reference/) |
 | understand how llmp2p works and why | [explanation/](explanation/) |
+| review security audit findings | [audits/](audits/) |
 
 Reference pages: [cli.md](reference/cli.md),
 [daemon-api.md](reference/daemon-api.md),

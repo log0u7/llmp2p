@@ -13,7 +13,9 @@ git clone https://github.com/log0u7/llmp2p.git && cd llmp2p
 make build
 ```
 
-Check: `./bin/llmp2p --version` prints `llmp2p version 0.0.0`.
+Check: `./bin/llmp2p --version` prints a version derived from the git tags
+(e.g. `llmp2p version v0.3.0-3-gabcdef0` on a worktree, `v0.3.0` from a
+release build).
 
 ## 2. Pull a small model
 
@@ -73,14 +75,21 @@ seeds the first one:
 mkdir -p /tmp/llmp2p-second-store
 ./bin/llmp2p pull hf:Qwen/Qwen2.5-0.5B-Instruct-GGUF \
   --dir /tmp/llmp2p-second-store \
-  --bootstrap http://127.0.0.1:8347 # not yet: v0.1 serves the index over the daemon API
+  --bootstrap http://127.0.0.1:8347 # serve index.json + manifests/ from the daemon's store
 ```
 
-Note: in v0.0.0 the daemon does not serve the index; to reproduce a P2P pull
-locally you need a bootstrap origin serving your `index.json` and `manifests/`.
-See docs/explanation/protocol.md for the exact layout. On a real deployment,
-once the model entry is merged into the public index, second pullers join the
-swarm automatically.
+Two decentralized options since v0.3 (no bootstrap origin needed):
+
+- `--dht --allowed-signers <publisher-key>`: discovery through BEP 44
+  records; small manifests travel inside the record itself.
+- `--swarm-key <hex|@file>`: private swarm mode, DHT only, no Hub fallback
+  (see [how-to/private-swarm.md](../how-to/private-swarm.md)).
+
+To reproduce the tutorial's P2P pull with the classic path, serve a bootstrap
+origin with your `index.json` and `manifests/` (see
+docs/explanation/protocol.md for the layout). On a real deployment, once the
+model entry is merged into the public index, second pullers join the swarm
+automatically.
 
 ## What you learned
 

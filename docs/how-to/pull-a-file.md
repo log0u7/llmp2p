@@ -3,9 +3,11 @@
 You already know llmp2p basics and want one artifact (for example one quantized
 GGUF) without pulling the whole repository.
 
-Single-file pulls always use HTTPS from the Hub: they skip the swarm and the
-index, because a partial file set would have a different infohash than the
-full-repo swarm.
+Single-file pulls always use HTTPS from the Hub: they skip the swarm, DHT
+discovery and the index, because a partial file set would have a different
+infohash than the full-repo swarm. Whole-repo pulls can use decentralized
+discovery instead: `--dht --allowed-signers` or `--swarm-key`
+([private-swarm.md](private-swarm.md)).
 
 ## Steps
 

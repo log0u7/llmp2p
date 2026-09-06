@@ -20,6 +20,9 @@ for confirmed issues.
   documented in [docs/explanation/trust-model.md](docs/explanation/trust-model.md).
   Findings that break the documented chain (manifest sha256 pinning, final
   per-file verification) are high priority.
+- Past internal audit findings and their dispositions live in
+  [docs/audits/](docs/audits/) (latest:
+  [docs/audits/2026-09-06.md](docs/audits/2026-09-06.md)).
 
 ## Supported versions
 
