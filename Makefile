@@ -2,7 +2,7 @@ BINARY_LLM2P := bin/llmp2p
 BINARY_DAEMON := bin/llmp2pd
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo 0.0.0)
 LDFLAGS := -s -w -X github.com/log0u7/llmp2p/internal/cli.version=$(VERSION)
-LDFLAGS_DAEMON := $(LDFLAGS) -X github.com/log0u7/llmp2p/cmd/llmp2pd.version=$(VERSION)
+LDFLAGS_DAEMON := $(LDFLAGS) -X main.version=$(VERSION)
 GOLANGCI := $(shell command -v golangci-lint 2>/dev/null || echo $(HOME)/go/bin/golangci-lint)
 
 .PHONY: all build test race vet lint fmt install clean dist
