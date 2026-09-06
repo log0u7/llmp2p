@@ -2,10 +2,12 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -137,5 +139,129 @@ func TestLocalSwarm(t *testing.T) {
 	}
 	if err := m.VerifyDir(filepath.Join(cliB.cfg.DataDir, "model")); err != nil {
 		t.Fatalf("leecher B data: %v", err)
+	}
+}
+
+func TestNewRequiresDataDir(t *testing.T) {
+	if _, err := New(Config{}, nil); err == nil {
+		t.Fatal("New accepted an empty DataDir")
+	}
+}
+
+func TestHashFromHex(t *testing.T) {
+	const good = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	ih, err := hashFromHex(good)
+	if err != nil || ih.HexString() != good {
+		t.Fatalf("hashFromHex(good) = %v, %v", ih, err)
+	}
+	if _, err := hashFromHex("zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"); err == nil {
+		t.Fatal("hashFromHex accepted non-hex input")
+	}
+	if _, err := hashFromHex("aaaa"); err == nil {
+		t.Fatal("hashFromHex accepted a short infohash")
+	}
+}
+
+func TestPrepareMagnetValidation(t *testing.T) {
+	e, err := New(Config{DataDir: t.TempDir(), NoDHT: true, DisableUTP: true}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = e.Close() }()
+	if err := e.PrepareMagnet("tooshort"); err == nil {
+		t.Fatal("PrepareMagnet accepted a short infohash")
+	}
+	const ih = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	if err := e.PrepareMagnet(ih); err != nil {
+		t.Fatalf("PrepareMagnet(valid): %v", err)
+	}
+	if err := e.PrepareMagnet(strings.Repeat("A", 40)); err != nil {
+		t.Fatalf("PrepareMagnet(uppercase): %v", err)
+	}
+}
+
+func TestAddPeersErrors(t *testing.T) {
+	e, err := New(Config{DataDir: t.TempDir(), NoDHT: true, DisableUTP: true}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = e.Close() }()
+	if err := e.AddPeers("nothex!!", []string{"127.0.0.1:1"}); err == nil {
+		t.Fatal("AddPeers accepted non-hex infohash")
+	}
+	const ih = "abababababababababababababababababababab"
+	if err := e.AddPeers(ih, []string{"127.0.0.1:1"}); err == nil {
+		t.Fatal("AddPeers accepted an unregistered torrent")
+	}
+}
+
+func TestTorrentStatuses(t *testing.T) {
+	seedDataDir, torrentPath, m := seedFixture(t)
+	e, err := New(Config{
+		DataDir:    seedDataDir,
+		NoDHT:      true,
+		ListenPort: freePort(t),
+		Seed:       true,
+		DisableUTP: true,
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = e.Close() }()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	if err := e.SeedTorrentFile(ctx, torrentPath); err != nil {
+		t.Fatal(err)
+	}
+
+	stats := e.TorrentStatuses()
+	if len(stats) != 1 {
+		t.Fatalf("TorrentStatuses = %d entries, want 1", len(stats))
+	}
+	st := stats[0]
+	if st.Name != "model" {
+		t.Errorf("Name = %q, want model", st.Name)
+	}
+	if st.InfoHash != m.InfoHash {
+		t.Errorf("InfoHash = %q, want %q", st.InfoHash, m.InfoHash)
+	}
+	if st.Total == 0 || !st.Complete || !st.Seeding {
+		t.Errorf("status = %+v, want complete and seeding", st)
+	}
+}
+
+func TestPullTorrentFileBadFile(t *testing.T) {
+	e, err := New(Config{DataDir: t.TempDir(), NoDHT: true, DisableUTP: true}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = e.Close() }()
+	if err := e.PullTorrentFile(context.Background(), filepath.Join(t.TempDir(), "missing.torrent"), nil); err == nil {
+		t.Fatal("PullTorrentFile accepted a missing torrent file")
+	}
+}
+
+func TestPullMagnetBadInfoHash(t *testing.T) {
+	e, err := New(Config{DataDir: t.TempDir(), NoDHT: true, DisableUTP: true}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = e.Close() }()
+	if err := e.PullMagnet(context.Background(), "abc", nil); err == nil {
+		t.Fatal("PullMagnet accepted a short infohash")
+	}
+}
+
+func TestPullMagnetCanceledContext(t *testing.T) {
+	e, err := New(Config{DataDir: t.TempDir(), NoDHT: true, DisableUTP: true}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = e.Close() }()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	err = e.PullMagnet(ctx, strings.Repeat("ab", 20), nil)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("err = %v, want context.Canceled", err)
 	}
 }
