@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"syscall"
 
 	"github.com/log0u7/llmp2p/internal/daemon"
 	"github.com/log0u7/llmp2p/internal/store"
@@ -52,7 +53,8 @@ API:
 		os.Exit(1)
 	}
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	// systemd sends SIGTERM; graceful shutdown must trigger on both.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	if err := daemon.Run(ctx, daemon.Options{
