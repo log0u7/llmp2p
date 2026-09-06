@@ -326,3 +326,53 @@ func TestPublishToDHTWithoutKeyIsBestEffort(t *testing.T) {
 		t.Fatalf("mode = %q", res.Mode)
 	}
 }
+
+func TestDHTInvalidInputsFallBack(t *testing.T) {
+	var hits atomic.Int64
+	hub := fakeHub(t, &hits)
+	st, err := store.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Malformed allowlist entry: discovery aborts before any query.
+	res, err := Run(context.Background(), pullRef(t), Options{
+		Store:          st,
+		HF:             hubAt(hub.URL),
+		BootstrapURLs:  []string{emptyBootstrap(t)},
+		HTTPClient:     http.DefaultClient,
+		EngineCfg:      engine.Config{NoDHT: true},
+		DHT:            true,
+		DHTAddrs:       []string{testDHTNode(t)},
+		AllowedSigners: []string{"nothex"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Mode != ModeHTTP {
+		t.Fatalf("mode = %q, want http fallback", res.Mode)
+	}
+
+	// Unusable node addresses: same outcome.
+	st2, err := store.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	priv, pubHex := mustPublisherKey(t)
+	_ = priv
+	res2, err := Run(context.Background(), pullRef(t), Options{
+		Store:          st2,
+		HF:             hubAt(hub.URL),
+		BootstrapURLs:  []string{emptyBootstrap(t)},
+		HTTPClient:     http.DefaultClient,
+		EngineCfg:      engine.Config{NoDHT: true},
+		DHT:            true,
+		DHTAddrs:       []string{"!!!not-a-addr"},
+		AllowedSigners: []string{pubHex},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res2.Mode != ModeHTTP {
+		t.Fatalf("mode = %q, want http fallback", res2.Mode)
+	}
+}
