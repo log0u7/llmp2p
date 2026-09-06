@@ -53,6 +53,13 @@ stays the default.
   mutable record is overwritten, older revisions keep using the index
 * Bad, because get is direct-node (bootstrap routers or explicit addresses),
   not a full iterative traversal
+* Bad, because the public mainline routers proved unreliable for mutable
+  records in practice: an empirical put/get round-trip against the 9
+  GlobalBootstrapAddrs on 2026-09-06 served the record from 0/9 (the
+  classic routers timed out on BEP 44 `get` queries; an OpenDHT router
+  answered but issued no write token). Until a reachable BEP 44 node
+  exists (e.g. a persistent `llmp2pd --dht`) or get gains traversal,
+  `--dht` needs a trusted node address, not just the public routers.
 
 ## Implementation notes
 

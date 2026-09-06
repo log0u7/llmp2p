@@ -69,19 +69,24 @@ The `torrents` count is 1. Stop the daemon with Ctrl-C when done.
 ## 6. (Optional) simulate a second peer
 
 On the same machine, pull the same model into a second store while the daemon
-seeds the first one:
+seeds the first one. The daemon does not serve bootstrap origins: serve the
+first store statically instead:
 
 ```sh
 mkdir -p /tmp/llmp2p-second-store
+python3 -m http.server 8000 -d ~/.local/share/llmp2p &   # static origin: index.json + manifests/
 ./bin/llmp2p pull hf:Qwen/Qwen2.5-0.5B-Instruct-GGUF \
   --dir /tmp/llmp2p-second-store \
-  --bootstrap http://127.0.0.1:8347 # serve index.json + manifests/ from the daemon's store
+  --bootstrap http://127.0.0.1:8000
 ```
 
 Two decentralized options since v0.3 (no bootstrap origin needed):
 
 - `--dht --allowed-signers <publisher-key>`: discovery through BEP 44
-  records; small manifests travel inside the record itself.
+  records; small manifests travel inside the record itself. Note: the
+  public mainline routers proved unreliable for mutable records in
+  practice (see ADR-0008); pair `--dht` with a reachable BEP 44 node for
+  now.
 - `--swarm-key <hex|@file>`: private swarm mode, DHT only, no Hub fallback
   (see [how-to/private-swarm.md](../how-to/private-swarm.md)).
 

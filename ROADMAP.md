@@ -33,6 +33,11 @@ is intent, not commitment.
 - [x] Private swarm mode (v0.3, `--swarm-key <hex|@file>`): DHT-only
       discovery under a shared publisher key without the bootstrap index,
       Hub fallback disabled.
+- [ ] Reachable BEP 44 nodes: the public mainline routers proved unreliable
+      for mutable records in practice (empirical round-trip 0/9 routers,
+      2026-09-06, see ADR-0008). A persistent `llmp2pd --dht` node and/or a
+      traversal-based get is required before `--dht` works without explicit
+      node addresses.
 
 ## v0.2 - ecosystem
 
