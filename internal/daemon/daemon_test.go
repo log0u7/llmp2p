@@ -362,3 +362,172 @@ func fakePullHubClient(hubURL string) *hf.Client {
 	c.HTTP = http.DefaultClient
 	return c
 }
+
+func TestDefaultPullTemplate(t *testing.T) {
+	st, err := store.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tmpl := defaultPullTemplate(Options{Store: st})
+	if tmpl.Store != st || !tmpl.NoLock {
+		t.Fatalf("default template = %+v", tmpl)
+	}
+
+	custom := &pull.Options{HTTPOnly: true}
+	tmpl = defaultPullTemplate(Options{Store: st, PullTemplate: custom})
+	if !tmpl.NoLock || tmpl.HTTPOnly != true || tmpl.Store != st {
+		t.Fatalf("custom template = %+v (store must be filled, NoLock forced)", tmpl)
+	}
+
+	withStore := &pull.Options{Store: st}
+	tmpl = defaultPullTemplate(Options{Store: st, PullTemplate: withStore})
+	if tmpl.Store != st || !tmpl.NoLock {
+		t.Fatalf("custom-with-store template = %+v", tmpl)
+	}
+}
+
+func TestDaemonSkipsBrokenModels(t *testing.T) {
+	st, err := store.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	fakeModel(t, st, "org/model", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+	fakeModel(t, st, "org/broken", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
+	ptr, err := st.ModelManifestFile("org/broken")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(ptr, []byte("{broken"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	port := freePort(t)
+	addr := fmt.Sprintf("127.0.0.1:%d", port)
+	ctx, cancel := context.WithCancel(context.Background())
+	errCh := make(chan error, 1)
+	go func() { errCh <- Run(ctx, Options{Store: st, ListenAddr: addr}) }()
+	defer func() {
+		cancel()
+		if err := <-errCh; err != nil {
+			t.Errorf("daemon: %v", err)
+		}
+	}()
+
+	resp, err := waitUp(t, addr, "/api/v1/status")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var status statusResponse
+	if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {
+		t.Fatal(err)
+	}
+	_ = resp.Body.Close()
+	if status.Models != 2 || status.Torrents != 0 || status.SeedingEngines != 0 {
+		t.Fatalf("status = %+v, want both models listed and nothing seeded", status)
+	}
+}
+
+func TestDaemonFailsOnGarbageTorrent(t *testing.T) {
+	st, err := store.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	fakeModel(t, st, "org/model", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+	tpath, err := st.TorrentPath("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(tpath, []byte("not-a-torrent"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	err = Run(ctx, Options{Store: st, ListenAddr: "127.0.0.1:0",
+		EngineOverrides: func(c *engine.Config) { c.NoDHT = true; c.DisableUTP = true }})
+	if err == nil || !strings.Contains(err.Error(), "daemon: seed org/model") {
+		t.Fatalf("err = %v, want seeding failure", err)
+	}
+}
+
+func TestDaemonPullAPIErrors(t *testing.T) {
+	st, err := store.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	port := freePort(t)
+	addr := fmt.Sprintf("127.0.0.1:%d", port)
+	ctx, cancel := context.WithCancel(context.Background())
+	errCh := make(chan error, 1)
+	go func() { errCh <- Run(ctx, Options{Store: st, ListenAddr: addr}) }()
+	defer func() {
+		cancel()
+		<-errCh
+	}()
+	if _, err := waitUp(t, addr, "/api/v1/status"); err != nil {
+		t.Fatal(err)
+	}
+	base := fmt.Sprintf("http://%s/api/v1/pulls", addr)
+
+	post := func(body string) *http.Response {
+		t.Helper()
+		res, err := http.Post(base, "application/json", strings.NewReader(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = res.Body.Close() })
+		return res
+	}
+	status := func(res *http.Response) int { return res.StatusCode }
+
+	if got := status(post("not json")); got != http.StatusBadRequest {
+		t.Errorf("invalid body status = %d, want 400", got)
+	}
+	if got := status(post(`{"ref":"nope"}`)); got != http.StatusBadRequest {
+		t.Errorf("bad ref status = %d, want 400", got)
+	}
+	if got := status(post(`{"ref":"hf:org/model#file.gguf"}`)); got != http.StatusBadRequest {
+		t.Errorf("path ref status = %d, want 400", got)
+	}
+
+	res, err := http.Get(base + "/unknown-job")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = res.Body.Close()
+	if res.StatusCode != http.StatusNotFound {
+		t.Errorf("unknown job status = %d, want 404", res.StatusCode)
+	}
+
+	res, err = http.Get(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var jobs []any
+	if err := json.NewDecoder(res.Body).Decode(&jobs); err != nil {
+		t.Fatal(err)
+	}
+	_ = res.Body.Close()
+	if len(jobs) != 0 {
+		t.Fatalf("jobs = %v, want empty list", jobs)
+	}
+}
+
+func TestCountModelsBrokenStore(t *testing.T) {
+	root := t.TempDir()
+	st, err := store.Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := &Server{st: st}
+	if got := s.countModels(); got != 0 {
+		t.Fatalf("countModels = %d, want 0 on an empty store", got)
+	}
+	if err := os.RemoveAll(root); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.countModels(); got != 0 {
+		t.Fatalf("countModels = %d, want 0 on a removed store", got)
+	}
+}
