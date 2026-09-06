@@ -532,6 +532,35 @@ func TestCountModelsBrokenStore(t *testing.T) {
 	}
 }
 
+func TestPullRejectsOversizedBody(t *testing.T) {
+	st, err := store.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	port := freePort(t)
+	addr := fmt.Sprintf("127.0.0.1:%d", port)
+	ctx, cancel := context.WithCancel(context.Background())
+	errCh := make(chan error, 1)
+	go func() { errCh <- Run(ctx, Options{Store: st, ListenAddr: addr}) }()
+	defer func() {
+		cancel()
+		<-errCh
+	}()
+	if _, err := waitUp(t, addr, "/api/v1/status"); err != nil {
+		t.Fatal(err)
+	}
+
+	oversized := strings.NewReader(`{"ref":"` + strings.Repeat("a", 128<<10) + `"}`)
+	res, err := http.Post(fmt.Sprintf("http://%s/api/v1/pulls", addr), "application/json", oversized)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = res.Body.Close()
+	if res.StatusCode != http.StatusBadRequest {
+		t.Fatalf("oversized body status = %d, want 400", res.StatusCode)
+	}
+}
+
 func TestMetricsConcurrentWithPullResults(t *testing.T) {
 	s := &Server{
 		st:        &store.Store{},

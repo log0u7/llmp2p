@@ -131,12 +131,16 @@ func (q *pullQueue) list() []pullJob {
 	return out
 }
 
+// maxPullBody bounds the delegated-pull request body: the API only ever
+// accepts a small JSON object ({ref, httpOnly}).
+const maxPullBody = 64 << 10
+
 func (s *Server) handlePullCreate(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Ref      string `json:"ref"`
 		HTTPOnly bool   `json:"httpOnly"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxPullBody)).Decode(&body); err != nil {
 		httpError(w, http.StatusBadRequest, "invalid body")
 		return
 	}
