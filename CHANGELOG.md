@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Test suite hardened: every internal package now sits at or above 80%
+  coverage (pull 83%, store 92%, engine 90%, daemon 85%, hf 88%), and the
+  CLI gained an end-to-end smoke suite driving the real cobra root against
+  temporary stores, fake Hub/daemon servers, and a fake ollama binary.
+
+### Fixed
+
+- hf: the byte count reported by a download that the server answered with a
+  full 200 response despite a resume Range request no longer double-counts
+  the pre-existing offset.
+
 ## [0.1.0] - 2026-09-02
 
 ### Added
