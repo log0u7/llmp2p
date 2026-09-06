@@ -7,30 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-09-02
+
 ### Added
 
-- `llmp2p remove <ref>`: delete a model from the store (files, torrent,
-  manifest, local index entry) with a size-aware confirmation prompt.
-- `llmp2p verify <ref>`: re-hash a stored model against its manifest.
-- Pull progress: self-rewriting swarm line and a fetched-file counter for the
-  HTTP fallback.
 - Daemon pull delegation: `POST /api/v1/pulls` job queue; the CLI detects a
   running daemon automatically and polls the job.
 - Prometheus metrics: `GET /metrics` on the daemon.
 - ed25519 signed manifests: `llmp2p keygen`, signature sidecars, and
   `pull --allowed-signers`.
-- Prebuilt binaries attached to GitHub Releases (linux/macos/windows).
-- Service units: systemd, launchd, NSSM ([deploy/](deploy/)).
-- mise-based dev environment ([mise.toml](mise.toml)).
-- CI: govulncheck job, Dependabot, actions pinned to commit SHAs.
 
 ### Fixed
 
-- Corrupted cached files now trigger a transparent re-pull instead of a hard
-  error.
-- Platform-appropriate default store dirs (XDG / Library / LOCALAPPDATA).
-- Go toolchain bumped to 1.25.14 and vulnerable modules updated:
-  govulncheck reports zero reachable vulnerabilities.
+- Pull-job responses encoded the live job while the runner mutated it (caught
+  by the race detector); handlers now serve snapshots.
 
 ## [0.0.1] - 2026-09-01
 
@@ -68,9 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (x/net, gorilla/websocket, pion/dtls, pion/stun): govulncheck reports zero
   reachable vulnerabilities.
 
-[Unreleased]: https://github.com/log0u7/llmp2p/compare/v0.0.1...HEAD
-[0.0.1]: https://github.com/log0u7/llmp2p/compare/v0.0.0...v0.0.1
-[0.0.0]: https://github.com/log0u7/llmp2p/releases/tag/v0.0.0
+## [0.0.0] - 2026-09-01
 
 Initial experimental release.
 
@@ -91,5 +79,10 @@ Initial experimental release.
 - Local index publication: every pulled model becomes discoverable and seedable.
 - Documentation set (Diataxis layout) and ADRs (MADR).
 - CI: go vet, race tests, golangci-lint, gitleaks; pre-commit gitleaks hook.
+
+[Unreleased]: https://github.com/log0u7/llmp2p/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/log0u7/llmp2p/compare/v0.0.1...v0.1.0
+[0.0.1]: https://github.com/log0u7/llmp2p/compare/v0.0.0...v0.0.1
+[0.0.0]: https://github.com/log0u7/llmp2p/releases/tag/v0.0.0
 
 
