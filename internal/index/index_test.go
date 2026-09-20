@@ -1,10 +1,12 @@
 package index
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -160,5 +162,38 @@ func TestManifestURL(t *testing.T) {
 	want := "https://example.com/llmp2p/main/manifests/" + sha64 + ".json"
 	if got != want {
 		t.Fatalf("ManifestURL = %q, want %q", got, want)
+	}
+}
+
+// TestIndexEntryJSONShape pins the published index.json schema: field
+// names, order, and the omitempty behavior of addedBy. The index file is
+// the public trust root; changing its shape is a breaking change.
+func TestIndexEntryJSONShape(t *testing.T) {
+	addedAt := time.Date(2026, 9, 21, 12, 0, 0, 0, time.UTC)
+	e := Entry{
+		Model:          "org/model",
+		InfoHash:       ih40,
+		ManifestSHA256: sha64,
+		Revision:       "cafe123",
+		Size:           123,
+		AddedAt:        addedAt,
+	}
+	b, err := json.Marshal(e)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `{"model":"org/model","infoHash":"` + ih40 + `","manifestSha256":"` + sha64 +
+		`","revision":"cafe123","size":123,"addedAt":"2026-09-21T12:00:00Z"}`
+	if string(b) != want {
+		t.Fatalf("entry json =\n%s\nwant\n%s", b, want)
+	}
+
+	e.AddedBy = "tester"
+	b, err = json.Marshal(e)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), `"addedBy":"tester"`) {
+		t.Fatalf("addedBy missing from %s", b)
 	}
 }

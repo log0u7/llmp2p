@@ -670,3 +670,116 @@ func TestPullJobTimesOut(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 	}
 }
+
+// TestDaemonJSONContentType pins the API contract: every /api/v1 endpoint
+// answers application/json (scripts and llmp2p itself decode it).
+func TestDaemonJSONContentType(t *testing.T) {
+	st, err := store.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	port := freePort(t)
+	addr := fmt.Sprintf("127.0.0.1:%d", port)
+	ctx, cancel := context.WithCancel(context.Background())
+	errCh := make(chan error, 1)
+	go func() { errCh <- Run(ctx, Options{Store: st, ListenAddr: addr, Version: "test"}) }()
+	defer func() {
+		cancel()
+		<-errCh
+	}()
+
+	for _, path := range []string{"/api/v1/status", "/api/v1/models", "/api/v1/torrents"} {
+		resp, err := waitUp(t, addr, path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ct := resp.Header.Get("Content-Type")
+		_ = resp.Body.Close()
+		if !strings.HasPrefix(ct, "application/json") {
+			t.Fatalf("%s content-type = %q, want application/json", path, ct)
+		}
+	}
+}
+
+// TestDefaultPullTemplateSemantics pins the delegated-pull defaults: the
+// daemon owns the store lock, so the template must force NoLock and use
+// the daemon's store.
+func TestDefaultPullTemplateSemantics(t *testing.T) {
+	st, err := store.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl := defaultPullTemplate(Options{Store: st})
+	if !tmpl.NoLock {
+		t.Fatal("default template must set NoLock: the daemon already owns the store lock")
+	}
+	if tmpl.Store != st {
+		t.Fatal("default template must use the daemon store")
+	}
+}
+
+// TestEnqueueSnapshotShape pins the POST /api/v1/pulls 202 response: id,
+// echoed ref, status queued, non-zero queuedAt. The background job fails
+// fast against a closed origin (offline test).
+func TestEnqueueSnapshotShape(t *testing.T) {
+	st, err := store.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "closed", http.StatusServiceUnavailable)
+	}))
+	origin.Close() // fail fast, no network reach needed
+
+	port := freePort(t)
+	addr := fmt.Sprintf("127.0.0.1:%d", port)
+	ctx, cancel := context.WithCancel(context.Background())
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- Run(ctx, Options{Store: st, ListenAddr: addr, Version: "test",
+			PullTemplate: &pull.Options{
+				BootstrapURLs: []string{origin.URL},
+				HTTPOnly:      true,
+				HTTPClient:    http.DefaultClient,
+			},
+		})
+	}()
+	defer func() {
+		cancel()
+		<-errCh
+	}()
+	if _, err := waitUp(t, addr, "/api/v1/status"); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := http.Post(fmt.Sprintf("http://%s/api/v1/pulls", addr), "application/json",
+		strings.NewReader(`{"ref":"hf:org/model"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = res.Body.Close() }()
+	if res.StatusCode != http.StatusAccepted {
+		t.Fatalf("create status = %d, want 202", res.StatusCode)
+	}
+	var job struct {
+		ID       string    `json:"id"`
+		Ref      string    `json:"ref"`
+		Status   string    `json:"status"`
+		QueuedAt time.Time `json:"queuedAt"`
+	}
+	if err := json.NewDecoder(res.Body).Decode(&job); err != nil {
+		t.Fatal(err)
+	}
+	if job.ID == "" {
+		t.Fatal("job id is empty")
+	}
+	if job.Ref != "hf:org/model" {
+		t.Fatalf("job ref = %q, want hf:org/model", job.Ref)
+	}
+	if job.Status != "queued" {
+		t.Fatalf("job status = %q, want queued", job.Status)
+	}
+	if job.QueuedAt.IsZero() {
+		t.Fatal("queuedAt is zero")
+	}
+}

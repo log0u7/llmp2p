@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -632,5 +633,108 @@ func TestPullWithPeerJoinsLocalSwarm(t *testing.T) {
 	got, err := os.ReadFile(filepath.Join(dirB, "store", "org", "demo", "model.gguf"))
 	if err != nil || string(got) != gguf {
 		t.Fatalf("b file mismatch: err=%v", err)
+	}
+}
+
+// captureStdout runs fn with os.Stdout redirected and returns what it
+// printed. Functions under test write to os.Stdout directly.
+func captureStdout(t *testing.T, fn func()) string {
+	t.Helper()
+	old := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = w
+	done := make(chan string, 1)
+	go func() {
+		b, _ := io.ReadAll(r)
+		done <- string(b)
+	}()
+	fn()
+	_ = w.Close()
+	os.Stdout = old
+	out := <-done
+	_ = r.Close()
+	return out
+}
+
+// TestPrintPullSummaryFormat pins the exact pull summary output: the human
+// line feeds the project demo/screenshots, the JSON feeds scripts. Any
+// format change must be a deliberate, documented decision.
+func TestPrintPullSummaryFormat(t *testing.T) {
+	res := pull.Result{
+		Model:          "org/model",
+		Revision:       "abcdef1234567890",
+		Mode:           pull.ModeP2P,
+		Files:          5,
+		Size:           34933719,
+		InfoHash:       "278afd9de89734be32a73e55931fc9ea6b9f7b49",
+		ManifestSHA256: strings.Repeat("b", 64),
+	}
+
+	human := captureStdout(t, func() { printPullSummary(res, false) })
+	wantHuman := "pulled org/model @abcdef123456 via p2p: 5 files, 33.3 MiB\n" +
+		"manifest " + strings.Repeat("b", 64) + "\n" +
+		"infohash 278afd9de89734be32a73e55931fc9ea6b9f7b49\n" +
+		"to keep sharing: llmp2p seed hf:org/model\n"
+	if human != wantHuman {
+		t.Fatalf("human summary =\n%q\nwant\n%q", human, wantHuman)
+	}
+
+	asJSON := captureStdout(t, func() { printPullSummary(res, true) })
+	wantJSON := "{\n" +
+		"  \"model\": \"org/model\",\n" +
+		"  \"revision\": \"abcdef1234567890\",\n" +
+		"  \"mode\": \"p2p\",\n" +
+		"  \"files\": 5,\n" +
+		"  \"size\": 34933719,\n" +
+		"  \"infoHash\": \"278afd9de89734be32a73e55931fc9ea6b9f7b49\",\n" +
+		"  \"manifestSha256\": \"" + strings.Repeat("b", 64) + "\"\n" +
+		"}\n"
+	if asJSON != wantJSON {
+		t.Fatalf("json summary =\n%q\nwant\n%q", asJSON, wantJSON)
+	}
+
+	cache := pull.Result{Model: "org/model", Revision: "r", Mode: pull.ModeCache}
+	out := captureStdout(t, func() { printPullSummary(cache, false) })
+	if strings.Contains(out, "to keep sharing") {
+		t.Fatalf("cache hits must not print the seed hint: %q", out)
+	}
+}
+
+// TestContextWithSignalCancel pins the seed signal contract: SIGINT and
+// SIGTERM cancel the returned context (seeding stops cleanly).
+func TestContextWithSignalCancel(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("signal delivery to self is unreliable on windows")
+	}
+	for _, sig := range []os.Signal{syscall.SIGINT, syscall.SIGTERM} {
+		t.Run(sig.String(), func(t *testing.T) {
+			ctx, cancel := contextWithSignal(context.Background())
+			defer cancel()
+			if err := syscall.Kill(os.Getpid(), sig.(syscall.Signal)); err != nil {
+				t.Fatal(err)
+			}
+			select {
+			case <-ctx.Done():
+			case <-time.After(5 * time.Second):
+				t.Fatalf("context not canceled by %s", sig)
+			}
+		})
+	}
+}
+
+// TestIsHexKeyAcceptsUppercase pins the CLI swarm-key contract: hex keys
+// are case-insensitive here (unlike the store path validator).
+func TestIsHexKeyAcceptsUppercase(t *testing.T) {
+	if !isHexKey(strings.ToUpper(strings.Repeat("a", 64))) {
+		t.Fatal("uppercase hex must be accepted")
+	}
+	if !isHexKey(strings.Repeat("a", 64)) {
+		t.Fatal("lowercase hex must be accepted")
+	}
+	if isHexKey(strings.Repeat("g", 64)) {
+		t.Fatal("non-hex must be rejected")
 	}
 }

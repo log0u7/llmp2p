@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -416,5 +417,22 @@ func TestLockFailsOnUnwritableRoot(t *testing.T) {
 	t.Cleanup(func() { _ = os.Chmod(root, 0o755) })
 	if _, err := s.Lock(50 * time.Millisecond); err == nil {
 		t.Fatal("Lock must fail on an unwritable root")
+	}
+}
+
+// TestIsHexLowercaseOnly pins the store path contract: model identifiers
+// (infohash, manifest sha) are lowercase hex only, on disk and in URLs.
+func TestIsHexLowercaseOnly(t *testing.T) {
+	if !isHex(strings.Repeat("a", 40), 40) {
+		t.Fatal("lowercase hex must be accepted")
+	}
+	if isHex(strings.ToUpper(strings.Repeat("a", 40)), 40) {
+		t.Fatal("uppercase hex must be rejected: store paths are lowercase-only")
+	}
+	if isHex(strings.Repeat("g", 40), 40) {
+		t.Fatal("non-hex must be rejected")
+	}
+	if isHex(strings.Repeat("a", 39), 40) {
+		t.Fatal("wrong length must be rejected")
 	}
 }
