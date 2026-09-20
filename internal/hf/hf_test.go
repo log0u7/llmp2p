@@ -99,30 +99,6 @@ func TestResolveNotFound(t *testing.T) {
 	}
 }
 
-func TestDownload(t *testing.T) {
-	body := testPayload(t, 1024)
-	mux := http.NewServeMux()
-	mux.HandleFunc("/org/model/resolve/main/dir/file.gguf", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/org/model/resolve/main/dir/file.gguf" {
-			t.Errorf("unexpected path %q", r.URL.Path)
-		}
-		_, _ = w.Write(body)
-	})
-	c := newTestServer(t, mux)
-
-	var out strings.Builder
-	got, n, err := c.Download(context.Background(), "org/model", "main", "dir/file.gguf", &out)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if want := sha256Hex(body); got != want {
-		t.Fatalf("sha = %s, want %s", got, want)
-	}
-	if n != int64(len(body)) {
-		t.Fatalf("size = %d, want %d", n, len(body))
-	}
-}
-
 func TestDownloadFile(t *testing.T) {
 	body := testPayload(t, 4096)
 	// Two chunks so the resume path downloads the second one.
@@ -290,51 +266,6 @@ func TestArtifactURL(t *testing.T) {
 	}
 	if got := (&Client{}).baseURL(); got != DefaultBaseURL {
 		t.Fatalf("baseURL = %q, want default", got)
-	}
-}
-
-func TestDownloadNotFound(t *testing.T) {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/org/model/resolve/main/file.gguf", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-	})
-	c := newTestServer(t, mux)
-	if _, _, err := c.Download(context.Background(), "org/model", "main", "file.gguf", io.Discard); !errors.Is(err, ErrNotFound) {
-		t.Fatalf("err = %v, want ErrNotFound", err)
-	}
-}
-
-func TestDownloadHTTPError(t *testing.T) {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/org/model/resolve/main/file.gguf", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusForbidden)
-	})
-	c := newTestServer(t, mux)
-	_, _, err := c.Download(context.Background(), "org/model", "main", "file.gguf", io.Discard)
-	var herr *HTTPError
-	if !errors.As(err, &herr) || herr.Status != http.StatusForbidden {
-		t.Fatalf("err = %v, want HTTPError 403", err)
-	}
-}
-
-func TestDownloadRequestError(t *testing.T) {
-	c := &Client{BaseURL: "http://bad\x7fhost", HTTP: &http.Client{}}
-	if _, _, err := c.Download(context.Background(), "org/model", "main", "f", io.Discard); err == nil {
-		t.Fatal("want request creation failure")
-	}
-}
-
-func TestDownloadDoError(t *testing.T) {
-	body := testPayload(t, 64)
-	mux := http.NewServeMux()
-	mux.HandleFunc("/org/model/resolve/main/f", func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write(body)
-	})
-	c := newTestServer(t, mux)
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	if _, _, err := c.Download(ctx, "org/model", "main", "f", io.Discard); err == nil {
-		t.Fatal("want transport failure on canceled context")
 	}
 }
 

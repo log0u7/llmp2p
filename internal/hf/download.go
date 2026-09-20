@@ -43,36 +43,6 @@ func (c *Client) downloadClient() *http.Client {
 	return &http.Client{}
 }
 
-// Download streams one repo artifact into w and returns its sha256 hex
-// digest and total byte count.
-func (c *Client) Download(ctx context.Context, repoID, revision, path string, w io.Writer) (string, int64, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.artifactURL(repoID, revision, path), nil)
-	if err != nil {
-		return "", 0, err
-	}
-	if c.Token != "" {
-		req.Header.Set("Authorization", "Bearer "+c.Token)
-	}
-	res, err := c.downloadClient().Do(req)
-	if err != nil {
-		return "", 0, err
-	}
-	defer func() { _ = res.Body.Close() }()
-	if res.StatusCode == http.StatusNotFound {
-		return "", 0, ErrNotFound
-	}
-	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		return "", 0, &HTTPError{Status: res.StatusCode, URL: req.URL.String()}
-	}
-
-	hasher := sha256.New()
-	n, err := io.Copy(io.MultiWriter(w, hasher), res.Body)
-	if err != nil {
-		return "", 0, fmt.Errorf("hf: download %s: %w", path, err)
-	}
-	return hex.EncodeToString(hasher.Sum(nil)), n, nil
-}
-
 // DownloadFile downloads one repo artifact to dst with resume support and
 // integrity checking. Partial data is written to dst + ".llmp2p.part" and
 // renamed atomically on success. When wantSHA256 is non-empty the final
