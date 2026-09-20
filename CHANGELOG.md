@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+Over-engineering cleanup (behavior-preserving; a characterization test
+suite pins the observable contracts that must not change):
+
+- `hf.Client.Download`: test-only streaming download, production uses
+  `DownloadFile` (resume + checksum) exclusively.
+- `Store.Manifests`: test-only manifest listing.
+- `Engine.PullTorrentFile`: test-only `.torrent`-file leech path;
+  production pull is magnet-only (`PrepareMagnet`/`PullMagnet`).
+- `Manifest.FileByPath`: test-only lookup helper.
+- `manifest.ErrWrongInfoHash`: exported sentinel with zero references.
+- `index.Entry.AddedBy` JSON field: never populated, was omitted from
+  every serialized entry (published index.json is byte-identical).
+- `engine.Config.NoUpload` and `engine.Config.Debug`: never set by any
+  caller; the client ran with the same upstream defaults.
+- Makefile targets `race` and `vet` (dead; `make test` now runs with
+  `-race` matching CI).
+- Internal cleanups: always-nil enqueue error return and its dead 500
+  branch, duplicate `writeJSON` helper, hand-rolled signal context and
+  trailing-slash trimming replaced by `signal.NotifyContext` and
+  `strings.TrimRight`, hand-rolled test sort/uppercase helpers replaced
+  by `slices.SortFunc` and `strings.ToUpper`.
+
+### Added
+
+- Characterization (failsafe) tests pinning: the pull summary output
+  format (human and JSON), the daemon JSON API content type, the
+  `POST /api/v1/pulls` 202 snapshot shape, the default pull template
+  `NoLock` semantics, the seed SIGINT/SIGTERM cancel contract, the
+  published index.json entry schema, and the two distinct hex
+  validation contracts (store paths lowercase-only vs CLI swarm keys
+  case-insensitive).
+
 ## [0.3.0] - 2026-09-06
 
 ### Added
