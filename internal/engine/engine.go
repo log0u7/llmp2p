@@ -181,15 +181,6 @@ func (e *Engine) pull(ctx context.Context, t *torrent.Torrent, onProgress func(P
 	}
 }
 
-// PullTorrentFile downloads the torrent described by a .torrent file.
-func (e *Engine) PullTorrentFile(ctx context.Context, torrentPath string, onProgress func(Progress)) error {
-	t, err := e.cl.AddTorrentFromFile(torrentPath)
-	if err != nil {
-		return fmt.Errorf("engine: add %s: %w", torrentPath, err)
-	}
-	return e.pull(ctx, t, onProgress)
-}
-
 // PrepareMagnet registers a torrent by infohash without starting any
 // transfer, allowing peers to be injected before pulling.
 func (e *Engine) PrepareMagnet(infoHashHex string) error {

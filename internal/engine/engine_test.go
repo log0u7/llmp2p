@@ -94,22 +94,20 @@ func TestLocalSwarm(t *testing.T) {
 	}
 	srvAddr := fmt.Sprintf("127.0.0.1:%d", srv.listenPort())
 
-	// Leecher A: from the .torrent file.
+	// Leecher A: prepare by infohash, inject peers, then pull (the
+	// production delegated-pull sequence).
 	cliA, err := New(Config{DataDir: t.TempDir(), NoDHT: true, ListenPort: freePort(t), DisableUTP: true}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() { _ = cliA.Close() }()
-	errA := make(chan error, 1)
-	go func() {
-		errA <- cliA.PullTorrentFile(ctx, torrentPath, nil)
-	}()
-	// Peers can be injected any time after the torrent is registered.
-	time.Sleep(300 * time.Millisecond)
+	if err := cliA.PrepareMagnet(m.InfoHash); err != nil {
+		t.Fatalf("prepare magnet A: %v", err)
+	}
 	if err := cliA.AddPeers(m.InfoHash, []string{srvAddr}); err != nil {
 		t.Fatalf("add peer A: %v", err)
 	}
-	if err := <-errA; err != nil {
+	if err := cliA.PullMagnet(ctx, m.InfoHash, nil); err != nil {
 		t.Fatalf("leecher A: %v", err)
 	}
 	if err := m.VerifyDir(filepath.Join(cliA.cfg.DataDir, "model")); err != nil {
@@ -227,17 +225,6 @@ func TestTorrentStatuses(t *testing.T) {
 	}
 	if st.Total == 0 || !st.Complete || !st.Seeding {
 		t.Errorf("status = %+v, want complete and seeding", st)
-	}
-}
-
-func TestPullTorrentFileBadFile(t *testing.T) {
-	e, err := New(Config{DataDir: t.TempDir(), NoDHT: true, DisableUTP: true}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = e.Close() }()
-	if err := e.PullTorrentFile(context.Background(), filepath.Join(t.TempDir(), "missing.torrent"), nil); err == nil {
-		t.Fatal("PullTorrentFile accepted a missing torrent file")
 	}
 }
 
