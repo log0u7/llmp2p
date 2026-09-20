@@ -16,18 +16,7 @@ import (
 
 // contextWithSignal cancels the returned context on SIGINT/SIGTERM.
 func contextWithSignal(ctx context.Context) (context.Context, func()) {
-	nctx, cancel := context.WithCancel(ctx)
-	ch := make(chan os.Signal, 1)
-	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		defer signal.Stop(ch)
-		select {
-		case <-ch:
-			cancel()
-		case <-ctx.Done():
-		}
-	}()
-	return nctx, cancel
+	return signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 }
 
 type modelInfo struct {
