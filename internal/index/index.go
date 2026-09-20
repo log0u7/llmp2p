@@ -154,7 +154,7 @@ func Fetch(client *http.Client, base_urls []string) (*FetchResult, error) {
 	}
 	res := &FetchResult{Index: &Index{Entries: map[string]Entry{}}}
 	for _, base := range base_urls {
-		url := trimSlash(base) + "/index.json"
+		url := strings.TrimRight(base, "/") + "/index.json"
 		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
 			res.Errors = append(res.Errors, err)
@@ -200,12 +200,5 @@ func Fetch(client *http.Client, base_urls []string) (*FetchResult, error) {
 
 // ManifestURL builds the URL of a manifest hosted next to an index.
 func ManifestURL(base, manifestSHA256 string) string {
-	return trimSlash(base) + "/manifests/" + manifestSHA256 + ".json"
-}
-
-func trimSlash(s string) string {
-	for len(s) > 0 && s[len(s)-1] == '/' {
-		s = s[:len(s)-1]
-	}
-	return s
+	return strings.TrimRight(base, "/") + "/manifests/" + manifestSHA256 + ".json"
 }
