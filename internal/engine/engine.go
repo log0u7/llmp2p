@@ -30,14 +30,10 @@ type Config struct {
 	NoDHT bool
 	// ListenPort is the BitTorrent listen port; 0 picks a random one.
 	ListenPort int
-	// NoUpload refuses to send chunks to peers.
-	NoUpload bool
 	// Seed keeps uploading after completion.
 	Seed bool
 	// DisableUTP is useful on flaky systems; TCP only then.
 	DisableUTP bool
-	// Debug enables verbose logging.
-	Debug bool
 }
 
 // Engine is a running torrent client.
@@ -81,10 +77,8 @@ func New(cfg Config, logger *slog.Logger) (*Engine, error) {
 	cc.DisableTrackers = cfg.NoDHT
 	cc.NoDefaultPortForwarding = cfg.NoDHT
 	cc.ListenPort = cfg.ListenPort
-	cc.NoUpload = cfg.NoUpload
 	cc.Seed = cfg.Seed
 	cc.DisableUTP = cfg.DisableUTP
-	cc.Debug = cfg.Debug
 	cc.Slogger = logger
 
 	cl, err := torrent.NewClient(cc)
