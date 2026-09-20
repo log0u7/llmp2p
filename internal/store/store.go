@@ -173,22 +173,6 @@ func (s *Store) ModelManifestFile(modelID string) (string, error) {
 	return filepath.Join(dir, ".llmp2p-manifest.json"), nil
 }
 
-// Manifests lists the sha256 of every stored manifest.
-func (s *Store) Manifests() ([]string, error) {
-	entries, err := os.ReadDir(s.manifestsDir())
-	if err != nil {
-		return nil, err
-	}
-	var out []string
-	for _, e := range entries {
-		name := e.Name()
-		if strings.HasSuffix(name, ".json") {
-			out = append(out, strings.TrimSuffix(name, ".json"))
-		}
-	}
-	return out, nil
-}
-
 // Models lists the model ids present in the store.
 func (s *Store) Models() ([]string, error) {
 	owners, err := os.ReadDir(s.storeDir())

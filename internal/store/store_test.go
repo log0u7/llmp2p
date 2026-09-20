@@ -324,41 +324,6 @@ func TestModelManifestFileValidation(t *testing.T) {
 	}
 }
 
-func TestManifestsListing(t *testing.T) {
-	s, err := Open(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got, err := s.Manifests(); err != nil || got != nil {
-		t.Fatalf("empty store Manifests = %v, %v; want nil, nil", got, err)
-	}
-	const sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-	if err := os.WriteFile(filepath.Join(s.manifestsDir(), sha+".json"), []byte("{}"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(s.manifestsDir(), sha+".sig"), []byte("sig"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(s.manifestsDir(), "notes.txt"), []byte("x"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	got, err := s.Manifests()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got) != 1 || got[0] != sha {
-		t.Fatalf("Manifests = %v, want [%s]", got, sha)
-	}
-}
-
-func TestManifestsReadError(t *testing.T) {
-	// No Open(): the manifests dir does not exist.
-	s := &Store{root: filepath.Join(t.TempDir(), "gone")}
-	if _, err := s.Manifests(); err == nil {
-		t.Fatal("Manifests must fail on a missing directory")
-	}
-}
-
 func TestModelsListing(t *testing.T) {
 	s, err := Open(t.TempDir())
 	if err != nil {
