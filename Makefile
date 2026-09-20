@@ -5,7 +5,7 @@ LDFLAGS := -s -w -X github.com/log0u7/llmp2p/internal/cli.version=$(VERSION)
 LDFLAGS_DAEMON := $(LDFLAGS) -X main.version=$(VERSION)
 GOLANGCI := $(shell command -v golangci-lint 2>/dev/null || echo $(HOME)/go/bin/golangci-lint)
 
-.PHONY: all build test race vet lint fmt install clean dist
+.PHONY: all build test lint fmt install clean dist
 
 all: build
 
@@ -14,13 +14,7 @@ build:
 	go build -ldflags '$(LDFLAGS_DAEMON)' -o $(BINARY_DAEMON) ./cmd/llmp2pd
 
 test:
-	go test ./...
-
-race:
 	go test -race ./...
-
-vet:
-	go vet ./...
 
 lint:
 	@if [ -x "$(GOLANGCI)" ]; then \
@@ -42,8 +36,6 @@ clean:
 
 DIST := dist
 DIST_MATRIX := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
-
-.PHONY: dist
 
 dist:
 	@mkdir -p $(DIST)
