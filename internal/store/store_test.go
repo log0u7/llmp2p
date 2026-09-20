@@ -67,7 +67,7 @@ func TestContentAddressedPaths(t *testing.T) {
 	if filepath.Base(tp) != ih+".torrent" {
 		t.Fatalf("TorrentPath = %q", tp)
 	}
-	for _, bad := range []string{"", "xyz", "AAAA", sha + "0", ih + "0", strings_upper(ih)} {
+	for _, bad := range []string{"", "xyz", "AAAA", sha + "0", ih + "0", strings.ToUpper(ih)} {
 		if _, err := s.TorrentPath(bad); err == nil {
 			t.Errorf("TorrentPath(%q) accepted", bad)
 		}
@@ -75,16 +75,6 @@ func TestContentAddressedPaths(t *testing.T) {
 			t.Errorf("ManifestPath(%q) accepted", bad)
 		}
 	}
-}
-
-func strings_upper(s string) string {
-	out := []rune(s)
-	for i, r := range out {
-		if r >= 'a' && r <= 'f' {
-			out[i] = r - 32
-		}
-	}
-	return string(out)
 }
 
 func TestLockExclusivity(t *testing.T) {

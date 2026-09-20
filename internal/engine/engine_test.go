@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -47,11 +48,7 @@ func seedFixture(t *testing.T) (seedDataDir, torrentPath string, m *manifest.Man
 		entries = append(entries, manifest.File{Path: path, Size: int64(len(content))})
 	}
 	// Deterministic sort by path.
-	for i := 1; i < len(entries); i++ {
-		for j := i; j > 0 && entries[j].Path < entries[j-1].Path; j-- {
-			entries[j], entries[j-1] = entries[j-1], entries[j]
-		}
-	}
+	slices.SortFunc(entries, func(a, b manifest.File) int { return strings.Compare(a.Path, b.Path) })
 	m, err := manifest.Create("org/model", "rev1", entries, modelDir)
 	if err != nil {
 		t.Fatal(err)

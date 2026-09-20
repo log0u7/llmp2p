@@ -21,16 +21,11 @@ import (
 func testRecord(t *testing.T) Record {
 	t.Helper()
 	return Record{
-		InfoHash:       mustBytes(t, strings.Repeat("\xaa", 20)),
-		ManifestSHA256: mustBytes(t, strings.Repeat("\xbb", 32)),
+		InfoHash:       []byte(strings.Repeat("\xaa", 20)),
+		ManifestSHA256: []byte(strings.Repeat("\xbb", 32)),
 		Revision:       "cafe123",
 		Size:           12345,
 	}
-}
-
-func mustBytes(t *testing.T, s string) []byte {
-	t.Helper()
-	return []byte(s)
 }
 
 func testKey(t *testing.T) (ed25519.PrivateKey, string) {
@@ -105,8 +100,8 @@ func TestDecodeRecordStrictness(t *testing.T) {
 	if _, err := DecodeRecord([]byte(`d1:i20:short1:m32:` + strings.Repeat("a", 32) + `1:r7:cafe1231:si5ee`)); err == nil {
 		t.Fatal("short infohash accepted")
 	}
-	badRev, err := bencode.Marshal(Record{InfoHash: mustBytes(t, strings.Repeat("a", 20)),
-		ManifestSHA256: mustBytes(t, strings.Repeat("b", 32)), Size: 1})
+	badRev, err := bencode.Marshal(Record{InfoHash: []byte(strings.Repeat("a", 20)),
+		ManifestSHA256: []byte(strings.Repeat("b", 32)), Size: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -303,7 +298,7 @@ func recordWithManifest(t *testing.T, model string) Record {
 	mj := manifestJSON(t, model)
 	sum := sha256.Sum256(mj)
 	return Record{
-		InfoHash:       mustBytes(t, strings.Repeat("\xaa", 20)),
+		InfoHash:       []byte(strings.Repeat("\xaa", 20)),
 		ManifestSHA256: sum[:],
 		Revision:       "cafe123",
 		Size:           5,

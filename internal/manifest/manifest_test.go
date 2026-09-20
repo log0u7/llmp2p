@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -34,11 +35,7 @@ func writeRepo(t *testing.T) (string, []File) {
 }
 
 func sortFiles(fs []File) {
-	for i := 1; i < len(fs); i++ {
-		for j := i; j > 0 && fs[j].Path < fs[j-1].Path; j-- {
-			fs[j], fs[j-1] = fs[j-1], fs[j]
-		}
-	}
+	slices.SortFunc(fs, func(a, b File) int { return strings.Compare(a.Path, b.Path) })
 }
 
 func TestCreateDeterministic(t *testing.T) {
