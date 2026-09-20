@@ -72,7 +72,6 @@ func delegatePull(url, ref string, httpOnly bool) (jobResult, error) {
 // jobResult mirrors the daemon pullJob JSON (subset the CLI needs).
 type jobResult struct {
 	ID     string      `json:"id"`
-	Ref    string      `json:"ref"`
 	Status string      `json:"status"`
 	Error  string      `json:"error,omitempty"`
 	Result pull.Result `json:"result,omitempty"`
