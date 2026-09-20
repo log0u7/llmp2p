@@ -6,7 +6,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 )
@@ -24,7 +23,6 @@ func validEntry(model string) Entry {
 		Revision:       "cafe123",
 		Size:           1024,
 		AddedAt:        time.Now().UTC().Truncate(time.Second),
-		AddedBy:        "tester",
 	}
 }
 
@@ -186,14 +184,5 @@ func TestIndexEntryJSONShape(t *testing.T) {
 		`","revision":"cafe123","size":123,"addedAt":"2026-09-21T12:00:00Z"}`
 	if string(b) != want {
 		t.Fatalf("entry json =\n%s\nwant\n%s", b, want)
-	}
-
-	e.AddedBy = "tester"
-	b, err = json.Marshal(e)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(b), `"addedBy":"tester"`) {
-		t.Fatalf("addedBy missing from %s", b)
 	}
 }

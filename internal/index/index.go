@@ -31,7 +31,6 @@ type Entry struct {
 	Revision       string    `json:"revision"`       // pinned commit sha
 	Size           int64     `json:"size"`
 	AddedAt        time.Time `json:"addedAt"`
-	AddedBy        string    `json:"addedBy,omitempty"`
 }
 
 // Index is a set of entries keyed by model id.
