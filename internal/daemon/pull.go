@@ -60,7 +60,7 @@ func newPullQueue(srv *Server, template pull.Options, log *slog.Logger) *pullQue
 
 // enqueue registers a pull job and starts it in the background. It returns
 // a snapshot copy: the live job is only touched under the queue lock.
-func (q *pullQueue) enqueue(ctx context.Context, r *ref.Ref, httpOnly bool) (pullJob, error) {
+func (q *pullQueue) enqueue(ctx context.Context, r *ref.Ref, httpOnly bool) pullJob {
 	job := &pullJob{
 		ID:       newJobID(),
 		Ref:      r.String(),
@@ -74,7 +74,7 @@ func (q *pullQueue) enqueue(ctx context.Context, r *ref.Ref, httpOnly bool) (pul
 	q.mu.Unlock()
 
 	go q.run(ctx, job, r, httpOnly)
-	return snapshot, nil
+	return snapshot
 }
 
 // pullJobTimeout bounds a delegated pull: a stalled transfer must not
@@ -160,11 +160,7 @@ func (s *Server) handlePullCreate(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusBadRequest, "delegated pulls operate on whole models")
 		return
 	}
-	job, err := s.pulls.enqueue(r.Context(), refObj, body.HTTPOnly)
-	if err != nil {
-		httpError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
+	job := s.pulls.enqueue(r.Context(), refObj, body.HTTPOnly)
 	writeJSONStatus(w, http.StatusAccepted, job)
 }
 
