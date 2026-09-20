@@ -2,7 +2,6 @@ package manifest
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -113,7 +112,3 @@ func torrentName(model string) string {
 func slashSegments(p string) []string {
 	return strings.Split(p, "/")
 }
-
-// ErrWrongInfoHash is returned when a downloaded metainfo does not match
-// the pinned infohash.
-var ErrWrongInfoHash = errors.New("manifest: metainfo infohash mismatch")
