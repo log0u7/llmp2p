@@ -116,8 +116,14 @@ func TestRoundTripAndMetaInfoBytes(t *testing.T) {
 	if loaded.InfoHash != m.InfoHash || loaded.Model != m.Model || loaded.Revision != m.Revision {
 		t.Fatalf("round trip mismatch: %+v vs %+v", loaded, m)
 	}
-	if f, ok := loaded.FileByPath("model.gguf"); !ok || f.Size != int64(3*1024+11) {
-		t.Fatalf("FileByPath = %+v, ok = %v", f, ok)
+	var found bool
+	for _, f := range loaded.Files {
+		if f.Path == "model.gguf" {
+			found = f.Size == int64(3*1024+11)
+		}
+	}
+	if !found {
+		t.Fatalf("pinned model.gguf entry missing or wrong: %+v", loaded.Files)
 	}
 
 	// The .torrent must rebuild to the same infohash.

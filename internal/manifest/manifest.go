@@ -133,16 +133,6 @@ func (m *Manifest) validateContent() error {
 	return nil
 }
 
-// FileByPath returns the pinned entry for path.
-func (m *Manifest) FileByPath(path string) (File, bool) {
-	for _, f := range m.Files {
-		if f.Path == path {
-			return f, true
-		}
-	}
-	return File{}, false
-}
-
 // Bytes returns the canonical JSON encoding.
 func (m *Manifest) Bytes() ([]byte, error) {
 	b, err := json.Marshal(m)
