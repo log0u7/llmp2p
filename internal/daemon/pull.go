@@ -171,11 +171,11 @@ func (s *Server) handlePullGet(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusNotFound, "unknown pull job")
 		return
 	}
-	writeJSON(w, job)
+	writeJSONStatus(w, http.StatusOK, job)
 }
 
 func (s *Server) handlePullList(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, s.pulls.list())
+	writeJSONStatus(w, http.StatusOK, s.pulls.list())
 }
 
 func httpError(w http.ResponseWriter, status int, msg string) {

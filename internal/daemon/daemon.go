@@ -5,7 +5,6 @@ package daemon
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -235,7 +234,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	models = s.countModels()
-	writeJSON(w, statusResponse{
+	writeJSONStatus(w, http.StatusOK, statusResponse{
 		Version:        s.version,
 		UptimeSeconds:  int64(time.Since(s.startedAt).Seconds()),
 		Models:         models,
@@ -247,7 +246,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleModels(w http.ResponseWriter, r *http.Request) {
 	ids, _ := s.st.Models()
-	writeJSON(w, ids)
+	writeJSONStatus(w, http.StatusOK, ids)
 }
 
 func (s *Server) handleTorrents(w http.ResponseWriter, r *http.Request) {
@@ -255,7 +254,7 @@ func (s *Server) handleTorrents(w http.ResponseWriter, r *http.Request) {
 	for _, e := range s.engines {
 		all = append(all, e.TorrentStatuses()...)
 	}
-	writeJSON(w, all)
+	writeJSONStatus(w, http.StatusOK, all)
 }
 
 func (s *Server) countModels() int {
@@ -264,11 +263,6 @@ func (s *Server) countModels() int {
 		return 0
 	}
 	return len(ids)
-}
-
-func writeJSON(w http.ResponseWriter, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(v)
 }
 
 func logf(l *slog.Logger, msg string, args ...any) {
