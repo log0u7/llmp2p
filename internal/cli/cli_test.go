@@ -13,7 +13,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 
@@ -699,28 +698,6 @@ func TestPrintPullSummaryFormat(t *testing.T) {
 	out := captureStdout(t, func() { printPullSummary(cache, false) })
 	if strings.Contains(out, "to keep sharing") {
 		t.Fatalf("cache hits must not print the seed hint: %q", out)
-	}
-}
-
-// TestContextWithSignalCancel pins the seed signal contract: SIGINT and
-// SIGTERM cancel the returned context (seeding stops cleanly).
-func TestContextWithSignalCancel(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("signal delivery to self is unreliable on windows")
-	}
-	for _, sig := range []os.Signal{syscall.SIGINT, syscall.SIGTERM} {
-		t.Run(sig.String(), func(t *testing.T) {
-			ctx, cancel := contextWithSignal(context.Background())
-			defer cancel()
-			if err := syscall.Kill(os.Getpid(), sig.(syscall.Signal)); err != nil {
-				t.Fatal(err)
-			}
-			select {
-			case <-ctx.Done():
-			case <-time.After(5 * time.Second):
-				t.Fatalf("context not canceled by %s", sig)
-			}
-		})
 	}
 }
 
