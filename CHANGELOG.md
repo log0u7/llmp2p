@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-09-21
+
+### Added
+
+- `llmp2pd` now accepts `--flag=value` (stdlib flag parsing).
+
+### Changed
+
+- `llmp2pd` fails fast on unknown flags (usage + exit 2) instead of
+  silently ignoring them.
+- Version injection unified in `internal/version`: one `-ldflags` line
+  for both binaries (`LDFLAGS_DAEMON` is gone).
+
 ## [0.3.1] - 2026-09-21
 
 ### Added
