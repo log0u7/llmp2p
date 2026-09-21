@@ -147,9 +147,12 @@ func Run(ctx context.Context, r *ref.Ref, opts Options) (Result, error) {
 	if cerr != nil {
 		logf(opts.Log, "cached files corrupt, re-pulling", "err", cerr)
 	} else if cachedOK {
+		// The digest cannot fail here: cached was just parsed from its
+		// canonical JSON encoding.
+		msha, _ := cached.SHA256()
 		return Result{Model: r.ID(), Revision: res.Revision, Mode: ModeCache,
 			Files: len(cached.Files), Size: total, InfoHash: cached.InfoHash,
-			ManifestSHA256: mustSHA(cached)}, nil
+			ManifestSHA256: msha}, nil
 	}
 
 	if !opts.HTTPOnly && r.Path == "" {
@@ -493,14 +496,6 @@ func publishLocalIndex(opts Options, modelID string, m *manifest.Manifest, msha 
 		return err
 	}
 	return local.Save(opts.Store.LocalIndexPath())
-}
-
-func mustSHA(m *manifest.Manifest) string {
-	s, err := m.SHA256()
-	if err != nil {
-		return ""
-	}
-	return s
 }
 
 func logf(l *slog.Logger, msg string, args ...any) {
