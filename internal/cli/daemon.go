@@ -8,11 +8,12 @@ import (
 	"os"
 	"time"
 
+	"github.com/log0u7/llmp2p/internal/daemon"
 	"github.com/log0u7/llmp2p/internal/pull"
 )
 
 // DefaultDaemonURL is the local daemon address the CLI delegates to.
-const DefaultDaemonURL = "http://127.0.0.1:8347"
+const DefaultDaemonURL = "http://" + daemon.DefaultAddr
 
 var daemonHTTP = &http.Client{Timeout: 10 * time.Second}
 
