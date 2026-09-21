@@ -167,7 +167,7 @@ func Run(ctx context.Context, r *ref.Ref, opts Options) (Result, error) {
 		}
 	}
 
-	res2, err := pullHTTP(ctx, r, opts, res.Revision, files, modelDir, entries)
+	res2, err := pullHTTP(ctx, hfc, r, opts, res.Revision, files, modelDir, entries)
 	if err != nil {
 		return Result{}, err
 	}
@@ -358,11 +358,7 @@ func fetchManifest(client *http.Client, bases []string, entry index.Entry, revis
 
 // pullHTTP downloads every file from the Hub, then builds and publishes
 // the manifest.
-func pullHTTP(ctx context.Context, r *ref.Ref, opts Options, revision string, files []hf.FileInfo, modelDir string, entries []manifest.File) (Result, error) {
-	hfc := opts.HF
-	if hfc == nil {
-		hfc = hf.New()
-	}
+func pullHTTP(ctx context.Context, hfc *hf.Client, r *ref.Ref, opts Options, revision string, files []hf.FileInfo, modelDir string, entries []manifest.File) (Result, error) {
 	for i, f := range files {
 		dst := filepath.Join(modelDir, filepath.FromSlash(f.Path))
 		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
