@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-09-21
+
+### Added
+
+- Public index entry: `aladar/TinyLLama-v0-GGUF` (revision pinned
+  `5699fe3c10da2ad397d774b0215fccefd1c6966d`), verified end-to-end from a
+  fresh store using this repository as bootstrap origin.
+
 ### Removed
 
 Second over-engineering pass (behavior-preserving; counter-analysis
