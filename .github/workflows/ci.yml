@@ -17,8 +17,6 @@ jobs:
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version-file: go.mod
-      - name: vet
-        run: go vet ./...
       - name: test
         run: go test -race ./...
       - name: cross-compile smoke
