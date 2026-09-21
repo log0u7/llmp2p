@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+Second over-engineering pass (behavior-preserving; counter-analysis
+rejected the findings whose collapse would change semantics):
+
+- `pull.mustSHA` helper inlined at its single call site (the digest
+  cannot fail on a freshly parsed manifest).
+- Dead re-normalization of `pull.Options.HF` inside `pullHTTP` (the
+  client is now passed down from `Run`).
+- `cli.DefaultDaemonURL` derived from `daemon.DefaultAddr`: one
+  definition of the daemon's default address.
+- `Engine.ListenPort`/`listenPort` wrapper split collapsed to one
+  method.
+- Redundant `go vet` step in CI (golangci-lint's govet covers it).
+- Test residues: discarded `_ =` assignments (mBytes, modelDir, priv,
+  posted), duplicated DHT bind helpers, and the signal-cancel test
+  moved to a `//go:build !windows` file so `go test` compiles on
+  windows (syscall.Kill does not exist there).
+
+### Removed
+
 Over-engineering cleanup (behavior-preserving; a characterization test
 suite pins the observable contracts that must not change):
 
