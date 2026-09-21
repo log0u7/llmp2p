@@ -328,8 +328,7 @@ func TestDHTInvalidInputsFallBack(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	priv, pubHex := mustPublisherKey(t)
-	_ = priv
+	_, pubHex := mustPublisherKey(t)
 	res2, err := Run(context.Background(), pullRef(t), Options{
 		Store:          st2,
 		HF:             hubAt(hub.URL),

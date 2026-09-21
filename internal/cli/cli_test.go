@@ -318,7 +318,6 @@ func TestPullDelegatesToDaemon(t *testing.T) {
 func TestPullDaemonReportsFailure(t *testing.T) {
 	var posted []string
 	srv := fakeDaemon(t, "failed", "boom", &posted)
-	_ = posted
 	if _, _, err := runRoot(t, "", "pull", "hf:org/model", "--dir", t.TempDir(),
 		"--daemon", srv.URL); err == nil || !strings.Contains(err.Error(), "daemon pull failed: boom") {
 		t.Fatalf("err = %v, want daemon failure propagation", err)

@@ -557,25 +557,20 @@ func manifestFixture(t *testing.T, revision string) (dir string, m *manifest.Man
 }
 
 func TestFetchManifestSignatureBadJSON(t *testing.T) {
-	_, m, entry := manifestFixture(t, "cafe123")
+	_, _, entry := manifestFixture(t, "cafe123")
 	boot := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("not json"))
 	}))
 	t.Cleanup(boot.Close)
-	mBytes, err := m.Bytes()
-	if err != nil {
-		t.Fatal(err)
-	}
 	// The manifest must be fetchable for verifyManifestSignature to reach
 	// the sidecar; here we exercise the sidecar parser directly.
 	if _, _, err := fetchManifestSignature(http.DefaultClient, []string{boot.URL}, entry.ManifestSHA256); err == nil {
 		t.Fatal("bad sidecar JSON accepted")
 	}
-	_ = mBytes
 }
 
 func TestVerifyManifestSignatureCases(t *testing.T) {
-	modelDir, m, entry := manifestFixture(t, "cafe123")
+	_, m, entry := manifestFixture(t, "cafe123")
 	msha := entry.ManifestSHA256
 	canonical, err := m.Bytes()
 	if err != nil {
@@ -623,7 +618,6 @@ func TestVerifyManifestSignatureCases(t *testing.T) {
 	if err := verifyManifestSignature(allow, m, []string{bootGood.URL}); err != nil {
 		t.Fatalf("allowlisted signer rejected: %v", err)
 	}
-	_ = modelDir
 }
 
 func mustSidecarJSON(t *testing.T, msha, sig, pubHex string) string {
