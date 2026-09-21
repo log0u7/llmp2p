@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log/slog"
 	"os"
@@ -11,53 +12,38 @@ import (
 	"github.com/log0u7/llmp2p/internal/daemon"
 	"github.com/log0u7/llmp2p/internal/engine"
 	"github.com/log0u7/llmp2p/internal/store"
+	"github.com/log0u7/llmp2p/internal/version"
 )
 
-var version = "0.0.0"
-
 func main() {
-	addr := daemon.DefaultAddr
-	dir := store.DefaultDir()
-	listenPort := 0
-	if len(os.Args) > 1 {
-		for i := 1; i < len(os.Args); i++ {
-			switch os.Args[i] {
-			case "--addr", "-addr":
-				i++
-				if i < len(os.Args) {
-					addr = os.Args[i]
-				}
-			case "--dir", "-dir":
-				i++
-				if i < len(os.Args) {
-					dir = os.Args[i]
-				}
-			case "--listen-port", "-listen-port":
-				i++
-				if i < len(os.Args) {
-					if _, err := fmt.Sscanf(os.Args[i], "%d", &listenPort); err != nil {
-						fmt.Fprintln(os.Stderr, "llmp2pd: --listen-port wants a number")
-						os.Exit(1)
-					}
-				}
-			case "--version", "-v":
-				fmt.Println("llmp2pd version", version)
-				return
-			case "--help", "-h":
-				fmt.Println(`llmp2pd: keep stored llmp2p models seeding and serve a local status API.
+	fs := flag.NewFlagSet("llmp2pd", flag.ExitOnError)
+	fs.Usage = func() {
+		fmt.Println(`llmp2pd: keep stored llmp2p models seeding and serve a local status API.
 
-Usage: llmp2pd [--addr 127.0.0.1:8347] [--dir ~/.local/share/llmp2p] [--listen-port 0]
+Usage:
+  llmp2pd [flags]
 
+Flags:`)
+		fs.PrintDefaults()
+		fmt.Println(`
 API:
   GET /api/v1/status     daemon summary
   GET /api/v1/models     model ids in store
   GET /api/v1/torrents   swarm statuses`)
-				return
-			}
-		}
+	}
+	addr := fs.String("addr", daemon.DefaultAddr, "status API listen address")
+	dir := fs.String("dir", store.DefaultDir(), "model store directory")
+	listenPort := fs.Int("listen-port", 0, "BitTorrent listen port, 0 picks a random one")
+	var showVersion bool
+	fs.BoolVar(&showVersion, "version", false, "print version and exit")
+	fs.BoolVar(&showVersion, "v", false, "print version and exit (shorthand)")
+	_ = fs.Parse(os.Args[1:])
+	if showVersion {
+		fmt.Println("llmp2pd version", version.Version)
+		return
 	}
 
-	st, err := store.Open(dir)
+	st, err := store.Open(*dir)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "llmp2pd:", err)
 		os.Exit(1)
@@ -69,11 +55,11 @@ API:
 
 	if err := daemon.Run(ctx, daemon.Options{
 		Store:      st,
-		ListenAddr: addr,
+		ListenAddr: *addr,
 		Log:        slog.Default(),
-		Version:    version,
+		Version:    version.Version,
 		EngineOverrides: func(c *engine.Config) {
-			c.ListenPort = listenPort
+			c.ListenPort = *listenPort
 		},
 	}); err != nil {
 		fmt.Fprintln(os.Stderr, "llmp2pd:", err)
