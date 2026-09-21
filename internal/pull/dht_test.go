@@ -23,9 +23,11 @@ import (
 	"github.com/log0u7/llmp2p/internal/store"
 )
 
-// testDHTNode binds an in-process DHT node and returns its udp address
-// (127.0.0.1:port) for use as opts.DHTAddrs.
-func testDHTNode(t *testing.T) string {
+// bindDHTNode binds an in-process DHT node. Used both as an
+// opts.DHTAddrs entry (via its udp address) and as a second node purely
+// to query the first one (a get against the storing node itself works
+// too; two nodes mirror the real topology).
+func bindDHTNode(t *testing.T) (*anadht.Server, string) {
 	t.Helper()
 	conn, err := dht.ListenUDP()
 	if err != nil {
@@ -40,7 +42,21 @@ func testDHTNode(t *testing.T) string {
 		srv.Close()
 		_ = conn.Close()
 	})
-	return fmt.Sprintf("127.0.0.1:%d", srv.Addr().(*net.UDPAddr).Port)
+	return srv, fmt.Sprintf("127.0.0.1:%d", srv.Addr().(*net.UDPAddr).Port)
+}
+
+// testDHTNode binds a DHT node and returns its udp address
+// (127.0.0.1:port) for use as opts.DHTAddrs.
+func testDHTNode(t *testing.T) string {
+	_, addr := bindDHTNode(t)
+	return addr
+}
+
+// dhtClientNode binds a second DHT node used purely to query the first
+// one.
+func dhtClientNode(t *testing.T) (srv *anadht.Server) {
+	s, _ := bindDHTNode(t)
+	return s
 }
 
 // udpAddrOf converts a "127.0.0.1:port" string into a node address.
@@ -59,27 +75,6 @@ func mustPublisherKey(t *testing.T) (ed25519.PrivateKey, string) {
 		t.Fatal(err)
 	}
 	return p, signing.PublicKeyHex(p)
-}
-
-// dhtClientNode binds a second DHT node used purely to query the first
-// one (a get against the storing node itself works too; two nodes mirror
-// the real topology).
-func dhtClientNode(t *testing.T) (srv *anadht.Server) {
-	t.Helper()
-	conn, err := dht.ListenUDP()
-	if err != nil {
-		t.Fatal(err)
-	}
-	srv, err = dht.NewServer(conn)
-	if err != nil {
-		_ = conn.Close()
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		srv.Close()
-		_ = conn.Close()
-	})
-	return srv
 }
 
 // TestDHTPublishAndDiscover runs the full v0.2 loop: a first pull
