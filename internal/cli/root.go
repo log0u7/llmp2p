@@ -8,10 +8,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/log0u7/llmp2p/internal/store"
+	"github.com/log0u7/llmp2p/internal/version"
 )
-
-// version is injected at build time with -ldflags.
-var version = "0.0.0"
 
 // DefaultBootstrapURL is the project-maintained index origin.
 const DefaultBootstrapURL = "https://raw.githubusercontent.com/log0u7/llmp2p/main"
@@ -22,7 +20,7 @@ func NewRootCmd() *cobra.Command {
 	root := &cobra.Command{
 		Use:     "llmp2p",
 		Short:   "P2P distribution of LLM model artifacts",
-		Version: version,
+		Version: version.Version,
 		Long: `llmp2p pulls Hugging Face model repositories through a BitTorrent
 swarm when peers exist, falling back to HTTPS from the Hub.
 Content is verified with sha256 end to end.
