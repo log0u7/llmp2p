@@ -1,3 +1,1 @@
-{
-  "entries": {}
-}
+{"entries": {"aladar/TinyLLama-v0-GGUF": {"addedAt": "2026-09-21T18:20:28Z", "infoHash": "278afd9de89734be32a73e55931fc9ea6b9f7b49", "manifestSha256": "a30a26d05c4f283bac377a44e77205991cbeb35a9cf6b2af162d1755e6b85422", "model": "aladar/TinyLLama-v0-GGUF", "revision": "5699fe3c10da2ad397d774b0215fccefd1c6966d", "size": 34933719}}}
