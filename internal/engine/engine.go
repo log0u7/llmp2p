@@ -88,13 +88,10 @@ func New(cfg Config, logger *slog.Logger) (*Engine, error) {
 	return &Engine{cfg: cfg, cl: cl}, nil
 }
 
-// listenPort is the actual bound listen port (useful when configured as 0).
-func (e *Engine) listenPort() int { return e.cl.LocalPort() }
-
-// ListenPort is the actual bound BitTorrent listen port: callers exposing
-// the engine on a fixed port (seeders) publish it so peers can connect
-// without DHT peer discovery.
-func (e *Engine) ListenPort() int { return e.listenPort() }
+// ListenPort is the actual bound BitTorrent listen port (useful when
+// configured as 0): callers exposing the engine on a fixed port (seeders)
+// publish it so peers can connect without DHT peer discovery.
+func (e *Engine) ListenPort() int { return e.cl.LocalPort() }
 
 // hashFromHex parses a 40-char v1 infohash without panicking on bad input.
 func hashFromHex(s string) (metainfo.Hash, error) {

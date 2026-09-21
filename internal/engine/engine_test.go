@@ -89,7 +89,7 @@ func TestLocalSwarm(t *testing.T) {
 	if err := srv.SeedTorrentFile(ctx, torrentPath); err != nil {
 		t.Fatalf("seeder: %v", err)
 	}
-	srvAddr := fmt.Sprintf("127.0.0.1:%d", srv.listenPort())
+	srvAddr := fmt.Sprintf("127.0.0.1:%d", srv.ListenPort())
 
 	// Leecher A: prepare by infohash, inject peers, then pull (the
 	// production delegated-pull sequence).
