@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Container image: multi-arch (`linux/amd64` + `linux/arm64`) `FROM scratch`
+  image of `llmp2pd` (+ `llmp2p` CLI), published from the
+  `6admin.io/docker/llmp2p` GitLab image project to
+  `registry.gitlab.com/6admin.io/docker/llmp2p/llmp2p`. Built from the pinned
+  GitHub release source, nonroot (65532), CA bundle included, store on the
+  `/data` volume, keyless cosign-signed release tags.
+- README: container image section (registry, tags, `cosign verify`, link to
+  the GitLab runbook) and bare-metal service instructions (systemd unit,
+  launchd, NSSM).
+
 ## [0.3.2] - 2026-09-21
 
 ### Added

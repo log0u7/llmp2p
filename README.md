@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/log0u7/llmp2p/actions/workflows/ci.yml/badge.svg)](https://github.com/log0u7/llmp2p/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/log0u7/llmp2p?sort=semver)](https://github.com/log0u7/llmp2p/releases)
+[![image pipeline](https://gitlab.com/6admin.io/docker/llmp2p/badges/main/pipeline.svg)](https://gitlab.com/6admin.io/docker/llmp2p/-/pipelines)
 [![Go](https://img.shields.io/badge/go-1.25-00ADD8?logo=go&logoColor=white)](https://go.dev/doc/devel/release)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -18,6 +19,12 @@ it distributes.
 
 **Good fit**: sharing GGUF repos, homelabs with several machines, sparing the
 Hub. **Bad fit**: first pull of a model nobody seeds.
+
+Development, issues and releases happen on GitHub
+([log0u7/llmp2p](https://github.com/log0u7/llmp2p)). The GitLab project
+([6admin.io/docker/llmp2p](https://gitlab.com/6admin.io/docker/llmp2p)) builds,
+signs and publishes the container image (see
+[Container image](#container-image)).
 
 Highlights:
 
@@ -69,6 +76,61 @@ git clone https://github.com/log0u7/llmp2p.git && cd llmp2p
 mise install      # first task run may ask for `mise trust`
 make build        # bin/llmp2p + bin/llmp2pd
 ```
+
+## Container image
+
+Multi-arch (`linux/amd64` + `linux/arm64`) `FROM scratch` image of `llmp2pd`,
+built from the pinned release source and keyless cosign-signed by the
+[GitLab image project](https://gitlab.com/6admin.io/docker/llmp2p), published
+to `registry.gitlab.com/6admin.io/docker/llmp2p/llmp2p`:
+
+| Tag | Content | Signed |
+|---|---|---|
+| `vX.Y.Z` | release, matching the packaged upstream version | yes (keyless cosign) |
+| `latest` | latest packaged release | no |
+| `<commit-sha>` | every pipeline run | no |
+
+```sh
+docker run -d --name llmp2pd -p 8347:8347 \
+  -v llmp2p-data:/data \
+  registry.gitlab.com/6admin.io/docker/llmp2p/llmp2p:v0.3.2
+```
+
+Full runbook (podman/quadlet, systemd service units, CLI usage, signature
+verification): <https://gitlab.com/6admin.io/docker/llmp2p#readme>.
+
+Release signatures are keyless (Sigstore): the certificate is issued to the
+GitLab CI OIDC token of the image repo tag pipeline. Verify with cosign:
+
+```sh
+cosign verify --experimental-oci11 \
+  --certificate-oidc-issuer https://gitlab.com \
+  --certificate-identity "https://gitlab.com/6admin.io/docker/llmp2p//.gitlab-ci.yml@refs/tags/v0.3.2" \
+  -a tag=v0.3.2 \
+  registry.gitlab.com/6admin.io/docker/llmp2p/llmp2p:v0.3.2
+```
+
+## Run as a service (bare metal)
+
+Binaries are static: install `llmp2pd` (and `llmp2p` to manage models) from
+the [release page](https://github.com/log0u7/llmp2p/releases) and run the
+daemon as a user systemd service:
+
+```sh
+cp deploy/systemd/llmp2pd.service ~/.config/systemd/user/
+# adjust ExecStart if the binary is not in ~/bin
+systemctl --user daemon-reload
+systemctl --user enable --now llmp2pd
+journalctl --user -u llmp2pd -f
+
+# keep it running without an active login session:
+loginctl enable-linger "$USER"
+```
+
+macOS: [deploy/macos/llmp2pd.plist](deploy/macos/llmp2pd.plist) (launchd).
+Windows: [deploy/windows/nssm-llmp2pd.ps1](deploy/windows/nssm-llmp2pd.ps1)
+(NSSM). For a containerized service (docker/podman, quadlet): see the
+[GitLab image runbook](https://gitlab.com/6admin.io/docker/llmp2p#readme).
 
 ## How a pull works
 
