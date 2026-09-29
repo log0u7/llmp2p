@@ -105,7 +105,7 @@ GitLab CI OIDC token of the image repo tag pipeline. Verify with cosign:
 ```sh
 cosign verify --experimental-oci11 \
   --certificate-oidc-issuer https://gitlab.com \
-  --certificate-identity "https://gitlab.com/6admin.io/docker/llmp2p//.gitlab-ci.yml@refs/tags/v0.3.2" \
+  --certificate-identity-regexp "project_id:87047483:ref_type:tag:ref:v0.3.2$" \
   -a tag=v0.3.2 \
   registry.gitlab.com/6admin.io/docker/llmp2p/llmp2p:v0.3.2
 ```
