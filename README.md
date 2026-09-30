@@ -90,8 +90,12 @@ to `registry.gitlab.com/6admin.io/docker/llmp2p/llmp2p`:
 | `latest` | latest packaged release | no |
 | `<commit-sha>` | every pipeline run | no |
 
+The registry is private: `docker login registry.gitlab.com` once with any
+GitLab account that can see the image project (deploy token with
+`read_registry` scope for third parties), then:
+
 ```sh
-docker run -d --name llmp2pd -p 8347:8347 \
+docker run -d --name llmp2pd -p 127.0.0.1:8347:8347 \
   -v llmp2p-data:/data \
   registry.gitlab.com/6admin.io/docker/llmp2p/llmp2p:v0.3.2
 ```
@@ -100,7 +104,8 @@ Full runbook (podman/quadlet, systemd service units, CLI usage, signature
 verification): <https://gitlab.com/6admin.io/docker/llmp2p#readme>.
 
 Release signatures are keyless (Sigstore): the certificate is issued to the
-GitLab CI OIDC token of the image repo tag pipeline. Verify with cosign:
+GitLab CI OIDC token of the image repo tag pipeline; cosign reuses the docker
+login credentials for the registry. Verify with cosign:
 
 ```sh
 cosign verify --experimental-oci11 \
