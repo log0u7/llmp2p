@@ -3,7 +3,7 @@ module github.com/log0u7/llmp2p
 go 1.25.14
 
 require (
-	github.com/anacrolix/dht/v2 v2.23.0
+	github.com/anacrolix/dht/v2 v2.24.0
 	github.com/anacrolix/torrent v1.61.0
 	github.com/gofrs/flock v0.13.1
 	github.com/spf13/cobra v1.10.2
