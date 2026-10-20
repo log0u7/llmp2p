@@ -1,5 +1,7 @@
 # llmp2p
 
+![llmp2p: a clay 3D ant colony carrying a glowing model cube between tiny servers](llmp2p-v0.png)
+
 [![CI](https://github.com/log0u7/llmp2p/actions/workflows/ci.yml/badge.svg)](https://github.com/log0u7/llmp2p/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/log0u7/llmp2p?sort=semver)](https://github.com/log0u7/llmp2p/releases)
 [![image pipeline](https://gitlab.com/6admin.io/docker/llmp2p/badges/main/pipeline.svg)](https://gitlab.com/6admin.io/docker/llmp2p/-/pipelines)
