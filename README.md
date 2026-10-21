@@ -5,7 +5,7 @@
 [![CI](https://github.com/log0u7/llmp2p/actions/workflows/ci.yml/badge.svg)](https://github.com/log0u7/llmp2p/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/log0u7/llmp2p?sort=semver)](https://github.com/log0u7/llmp2p/releases)
 [![image pipeline](https://gitlab.com/6admin.io/docker/llmp2p/badges/main/pipeline.svg)](https://gitlab.com/6admin.io/docker/llmp2p/-/pipelines)
-[![Go](https://img.shields.io/badge/go-1.25-00ADD8?logo=go&logoColor=white)](https://go.dev/doc/devel/release)
+[![Go](https://img.shields.io/badge/go-1.26-00ADD8?logo=go&logoColor=white)](https://go.dev/doc/devel/release)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 P2P distribution of LLM model artifacts: pull Hugging Face model repositories
@@ -45,7 +45,7 @@ Highlights:
 Install the CLI and the daemon, from the
 [release page](https://github.com/log0u7/llmp2p/releases) (linux/macos/windows
 binaries; on macOS, clear the Gatekeeper flag on first run:
-`xattr -d com.apple.quarantine llmp2p`), or with Go 1.25+ (the `go.mod` pins
+`xattr -d com.apple.quarantine llmp2p`), or with Go 1.26+ (the `go.mod` pins
 the toolchain, `GOTOOLCHAIN=auto` handles it):
 
 ```sh
@@ -89,33 +89,34 @@ to `registry.gitlab.com/6admin.io/docker/llmp2p/llmp2p`:
 | Tag | Content | Signed |
 |---|---|---|
 | `vX.Y.Z` | release, matching the packaged upstream version | yes (keyless cosign) |
-| `latest` | latest packaged release | no |
+| `latest` | latest build from `main` | no |
 | `<commit-sha>` | every pipeline run | no |
 
-The registry is private: `docker login registry.gitlab.com` once with any
-GitLab account that can see the image project (deploy token with
-`read_registry` scope for third parties), then:
+The registry is public: pull anonymously, no login required.
 
 ```sh
 docker run -d --name llmp2pd -p 127.0.0.1:8347:8347 \
   -v llmp2p-data:/data \
-  registry.gitlab.com/6admin.io/docker/llmp2p/llmp2p:v0.3.2
+  registry.gitlab.com/6admin.io/docker/llmp2p/llmp2p:v0.4.1
 ```
 
 Full runbook (podman/quadlet, systemd service units, CLI usage, signature
 verification): <https://gitlab.com/6admin.io/docker/llmp2p#readme>.
 
 Release signatures are keyless (Sigstore): the certificate is issued to the
-GitLab CI OIDC token of the image repo tag pipeline; cosign reuses the docker
-login credentials for the registry. Verify with cosign:
+GitLab CI OIDC token of the image repo tag pipeline. The registry is public,
+so cosign needs no registry credentials. Verify with cosign:
 
 ```sh
 cosign verify --experimental-oci11 \
   --certificate-oidc-issuer https://gitlab.com \
-  --certificate-identity-regexp "project_id:87047483:ref_type:tag:ref:v0.3.2$" \
-  -a tag=v0.3.2 \
-  registry.gitlab.com/6admin.io/docker/llmp2p/llmp2p:v0.3.2
+  --certificate-identity-regexp "project_id:87047483:ref_type:tag:ref:v0.4.1$" \
+  -a tag=v0.4.1 \
+  registry.gitlab.com/6admin.io/docker/llmp2p/llmp2p:v0.4.1
 ```
+
+The certificate identity uses the immutable GitLab project id (`87047483`),
+not the project path.
 
 ## Run as a service (bare metal)
 
@@ -208,7 +209,7 @@ Organized as [Diátaxis](https://diataxis.fr/): start at
 
 ## Status
 
-v0.3.0, experimental: whole-repo pulls work end to end (swarm, DHT discovery,
+v0.4.1, experimental: whole-repo pulls work end to end (swarm, DHT discovery,
 private swarms), the protocol may still change before 1.0. See
 [ROADMAP.md](ROADMAP.md).
 
