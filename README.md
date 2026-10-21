@@ -97,7 +97,7 @@ The registry is public: pull anonymously, no login required.
 ```sh
 docker run -d --name llmp2pd -p 127.0.0.1:8347:8347 \
   -v llmp2p-data:/data \
-  registry.gitlab.com/6admin.io/docker/llmp2p/llmp2p:v0.4.1
+  registry.gitlab.com/6admin.io/docker/llmp2p/llmp2p:v0.4.2
 ```
 
 Full runbook (podman/quadlet, systemd service units, CLI usage, signature
@@ -110,9 +110,9 @@ so cosign needs no registry credentials. Verify with cosign:
 ```sh
 cosign verify --experimental-oci11 \
   --certificate-oidc-issuer https://gitlab.com \
-  --certificate-identity-regexp "project_id:87047483:ref_type:tag:ref:v0.4.1$" \
-  -a tag=v0.4.1 \
-  registry.gitlab.com/6admin.io/docker/llmp2p/llmp2p:v0.4.1
+  --certificate-identity-regexp "project_id:87047483:ref_type:tag:ref:v0.4.2$" \
+  -a tag=v0.4.2 \
+  registry.gitlab.com/6admin.io/docker/llmp2p/llmp2p:v0.4.2
 ```
 
 The certificate identity uses the immutable GitLab project id (`87047483`),
@@ -209,7 +209,7 @@ Organized as [Diátaxis](https://diataxis.fr/): start at
 
 ## Status
 
-v0.4.1, experimental: whole-repo pulls work end to end (swarm, DHT discovery,
+v0.4.2, experimental: whole-repo pulls work end to end (swarm, DHT discovery,
 private swarms), the protocol may still change before 1.0. See
 [ROADMAP.md](ROADMAP.md).
 
