@@ -1,6 +1,6 @@
 module github.com/log0u7/llmp2p
 
-go 1.26.9
+go 1.26.10
 
 require (
 	github.com/anacrolix/dht/v2 v2.24.0

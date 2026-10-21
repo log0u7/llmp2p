@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Security: Go toolchain 1.26.10, clearing GO-2026-6809 (crypto/x509
+  intermediate certificate distrust).
 - README: the container image registry is public (no login or deploy token),
   image examples and cosign verification target v0.4.1, and the Go and status
   references no longer lag behind `go.mod` and the latest release.
