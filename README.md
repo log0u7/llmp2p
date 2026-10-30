@@ -3,10 +3,10 @@
 ![llmp2p: a clay 3D ant colony carrying a glowing model brain between tiny servers and the cloud](docs/art/llmp2p-v1.png)
 
 [![CI](https://github.com/log0u7/llmp2p/actions/workflows/ci.yml/badge.svg)](https://github.com/log0u7/llmp2p/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Go](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)](https://go.dev/doc/devel/release)
 [![Release](https://img.shields.io/github/v/release/log0u7/llmp2p?sort=semver)](https://github.com/log0u7/llmp2p/releases)
 [![image pipeline](https://gitlab.com/6admin.io/docker/llmp2p/badges/main/pipeline.svg)](https://gitlab.com/6admin.io/docker/llmp2p/-/pipelines)
-[![Go](https://img.shields.io/badge/go-1.26-00ADD8?logo=go&logoColor=white)](https://go.dev/doc/devel/release)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 P2P distribution of LLM model artifacts: pull Hugging Face model repositories
 through a BitTorrent swarm when peers exist, fall back to HTTPS from the Hub
